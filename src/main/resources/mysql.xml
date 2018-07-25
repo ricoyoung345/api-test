@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:weibo="http://api.weibo.com/schema/weibo"
+       xsi:schemaLocation="
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
+http://api.weibo.com/schema/weibo http://api.weibo.com/schema/weibo.xsd ">
+    <!-- datasources -->
+    <bean id="cmtTimelineBaseDataSource"  abstract="true">
+        <property name="driverClass"><value>com.mysql.jdbc.Driver</value></property>
+        <property name="minPoolSize"><value>${feed.db.comment.minPoolSize}</value></property>
+        <property name="maxPoolSize"><value>${feed.db.common.maxPoolSize}</value></property>
+        <property name="idleConnectionTestPeriod"><value>25</value></property>
+        <property name="maxIdleTime"><value>180</value></property>
+        <property name="breakAfterAcquireFailure"><value>false</value></property>
+        <property name="acquireRetryAttempts"><value>30</value></property>
+        <property name="acquireRetryDelay"><value>1000</value></property>
+        <property name="maxConnectionAge"><value>7200</value></property>
+        <property name="user"><value>${comment.timeline.datasource.user}</value></property>
+        <property name="password"><value>${comment.timeline.datasource.password}</value></property>
+    </bean>
+
+    <bean id="tableContainer" class="cn.sina.api.data.dao.impl2.strategy.TableContainer">
+        <property name="tablesItems">
+            <map>
+                <entry key="status_cmt" value-ref="status_cmt"/>
+                <entry key="cmt_timeline" value-ref="cmt_timeline"/>
+            </map>
+        </property>
+    </bean>
+
+    <bean id="cmt_timeline" class="cn.sina.api.data.dao.impl2.strategy.TableItem">
+        <property name="itemName" value="cmt_timeline"/>
+        <property name="dbNamePrefix"  value="cmt_timeline"/>
+        <property name="dbCount"  value="32"/>
+
+        <property name="tableNamePrefix" value="timeline" />
+        <property name="tableNamePostFix" value="yymm" /> <!-- 默认是索引 -->
+        <property name="tableCount" value="1" />            <!-- 这个参数和tableNamePostFix有关系，如果是日期就不用了。 -->
+        <property name="sqls">
+            <map>
+                <entry key="SAVE_TIMELINE" value="insert into $db$.$tb$ (uid, vflag, type, cmt_id, mflag) values(?, ?, ?, ?, ?)"/>
+                <entry key="UPDATE_TIMELINE_STATE" value="update $db$.$tb$ set vflag=?, mflag=? where uid=? and vflag in(0,6,7) and type in(1,2,4,50) and cmt_id=?"/>
+                <entry key="GET_TIMELINE" value="select uid,vflag,cmt_id,mflag from $db$.$tb$ where uid=? and vflag=? order by cmt_id desc limit ?,?"/>
+                <entry key="GET_TIMELINE_ALL_TO_ME" value="select cmt_id from $db$.$tb$ where uid=? and type&lt;=? and vflag=?"/>
+                <entry key="GET_TIMELINE_BY_CURSOR_TO_ME" value="select cmt_id from $db$.$tb$ where uid=? and type&lt;=? and vflag=? and cmt_id&lt;=? order by cmt_id desc limit ?"/>
+                <entry key="GET_TIMELINE_BY_TYPE" value="select cmt_id from $db$.$tb$ where uid=? and type=? and vflag=? order by cmt_id desc limit ?,?"/>
+                <entry key="GET_TIMELINE_BY_TYPE_ALL" value="select cmt_id from $db$.$tb$ where uid=? and type=? and vflag=?"/>
+                <entry key="GET_TIMELINE_BY_TYPE_BY_CURSOR" value="select cmt_id from $db$.$tb$ where uid=? and type=? and vflag=? and cmt_id&lt;=? order by cmt_id desc limit ?"/>
+                <entry key="GET_TIMELINE_TO_ME" value="select cmt_id from $db$.$tb$ where uid=? and type&lt;=? and vflag=? order by cmt_id desc limit ?,?"/>
+                <entry key="GET_CMT_TYPE" value="select type from $db$.$tb$ where uid=? and type in(1,2,4,50) and vflag in(0,4,5,6,7,15,16) and cmt_id=?"/>
+                <entry key="GET_CMT_POS_IN_TO_ME_TL" value="select count(*) from $db$.$tb$ where uid=? and type &lt;= ? and vflag=? and cmt_id &gt; ?"/>
+                <entry key="GET_CMT_POS_IN_TO_ME_TL_BY_TYPE" value="select count(*) from $db$.$tb$ where uid=? and type=? and vflag=? and cmt_id &gt; ?"/>
+                <entry key="GET_TIMELINE_BY_ME_ALL" value="select cmt_id from $db$.$tb$ where uid=? and cmt_id &gt;= ? and type=50 order by cmt_id desc limit ?"/>
+            </map>
+        </property>
+        <property name="jdbcTemplates">
+            <list>
+                <ref bean="cmt_timeline_jdbctemplate_0"/>
+                <ref bean="cmt_timeline_jdbctemplate_1"/>
+                <ref bean="cmt_timeline_jdbctemplate_2"/>
+                <ref bean="cmt_timeline_jdbctemplate_3"/>
+                <ref bean="cmt_timeline_jdbctemplate_4"/>
+                <ref bean="cmt_timeline_jdbctemplate_5"/>
+                <ref bean="cmt_timeline_jdbctemplate_6"/>
+                <ref bean="cmt_timeline_jdbctemplate_7"/>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="status_cmt" class="cn.sina.api.data.dao.impl2.strategy.TableItem">
+        <property name="itemName" value="status_cmt"/>
+        <property name="dbNamePrefix"  value="cmt_timeline"/>
+        <property name="dbCount"  value="32"/>
+
+        <property name="tableNamePrefix" value="status_cmt" />
+        <property name="tableNamePostFix" value="yymm" /> <!-- 默认是索引 -->
+        <property name="tableCount" value="1" />            <!-- 这个参数和tableNamePostFix有关系，如果是日期就不用了。 -->
+        <property name="sqls">
+            <map>
+                <entry key="SAVE_STATUS_CMT" value="insert into $db$.$tb$ (status_id, vflag, cmt_id, mflag, uid) values(?, ?, ?, ?, ?)"/>
+                <entry key="UPDATE_STATUS_CMT_STATE" value="update $db$.$tb$ set vflag = ?, mflag=? where status_id = ? and vflag in (0,6,7) and cmt_id = ?"/>
+                <entry key="GET_STATUS_COMMENT_ALL_IN_MONTH" value="select cmt_id from $db$.$tb$ where status_id=? and vflag=?"/>
+                <entry key="GET_STATUS_COMMENTMETA_ALL_IN_MONTH" value="select cmt_id,uid,vflag from $db$.$tb$ where status_id=? and vflag=? order by cmt_id asc"/>
+                <entry key="GET_STATUS_COMMENTMETA_ALL_IN_MONTH_BY_CID" value="select cmt_id,uid,vflag from $db$.$tb$ where status_id=? and vflag=? and cmt_id&lt;? order by cmt_id asc"/>
+                <entry key="GET_STATUS_COMMENT_IN_MONTH" value="select cmt_id from $db$.$tb$ where status_id=? and vflag in (?, ?)  order by cmt_id desc limit ?,?"/>
+                <entry key="GET_STATUS_COMMENT_IN_MONTH_BY_FLAG" value="select cmt_id from $db$.$tb$ where status_id=? and vflag = ? order by cmt_id desc limit ?,?"/>
+                <entry key="GET_STATUS_COMMENT_IN_MONTH_ASC" value="select cmt_id from $db$.$tb$ where status_id=? and vflag in (?, ?) order by cmt_id asc limit ?,?"/>
+                <entry key="GET_STATUS_COMMENT_IN_MONTH_ASC_BY_FLAG" value="select cmt_id from $db$.$tb$ where status_id=? and vflag = ? order by cmt_id asc limit ?,?"/>
+                <entry key="GET_STATUS_COMMENTMETA_IN_MONTH_ASC" value="select cmt_id,uid,vflag from $db$.$tb$ where status_id=? and vflag=? and cmt_id&gt;=? order by cmt_id asc limit ?,?"/>
+                <entry key="GET_STATUS_COMMENTMETA_IN_MONTH_ASC_BY_CID" value="select cmt_id,uid,vflag from $db$.$tb$ where status_id=? and vflag=? and cmt_id&gt;=? and cmt_id&lt;? order by cmt_id asc limit ?,?"/>
+                <entry key="GET_STATUS_COMMENT_IN_MONTH_BY_CURSOR" value="select cmt_id from $db$.$tb$ where status_id=? and vflag=? and cmt_id&gt;? order by cmt_id desc limit ?"/>
+                <entry key="GET_STATUS_COMMENT_POS" value="select count(*) from $db$.$tb$ where status_id=? and vflag=? and cmt_id &gt; ?"/>
+
+                <entry key="GET_STATUS_COMMENT_TIMELINE_APPROVAL_ASC" value="select cmt_id from $db$.$tb$ where status_id=? and ((vflag=? and mflag in (37,39)) or vflag=?) and cmt_id &gt;=? order by cmt_id asc limit ?,?"/>
+                <entry key="GET_STATUS_COMMENT_SHOW_TIMELINE_APPROVAL_ASC_SPILT" value="select cmt_id from $db$.$tb$ where status_id=? and vflag=? and mflag in (37,39) and cmt_id &gt;=? order by cmt_id asc limit ?,?"/>
+                <entry key="GET_STATUS_COMMENT_SELF_TIMELINE_APPROVAL_ASC_SPILT" value="select cmt_id from $db$.$tb$ where status_id=? and vflag=? and cmt_id &gt;=? order by cmt_id asc limit ?,?"/>
+                <entry key="GET_STATUS_COMMENT_TIMELINE_APPROVAL_DESC" value="select cmt_id from $db$.$tb$ where status_id=? and ((vflag=? and mflag in (37,39)) or vflag=?) and cmt_id &lt;=? order by cmt_id desc limit ?,?"/>
+                <entry key="GET_STATUS_COMMENT_SHOW_TIMELINE_APPROVAL_DESC_SPILT" value="select cmt_id from $db$.$tb$ where status_id=? and vflag=? and mflag in (37,39) and cmt_id &lt;=? order by cmt_id desc limit ?,?"/>
+                <entry key="GET_STATUS_COMMENT_SELF_TIMELINE_APPROVAL_DESC_SPILT" value="select cmt_id from $db$.$tb$ where status_id=? and vflag=? and cmt_id &lt;=? order by cmt_id desc limit ?,?"/>
+                <entry key="GET_STATUS_COMMENT_APPROVAL_ALL_IN_MONTH" value="select cmt_id from $db$.$tb$ where status_id=? and ((vflag=? and mflag in (37,39)) or vflag=?)"/>
+
+                <entry key="GET_STATUS_COMMENT_CHECK" value="select cmt_id from $db$.$tb$ where status_id=? and vflag=? and cmt_id &lt;=? and mflag=? order by cmt_id desc limit ?,?"/>
+                <entry key="GET_STATUS_COMMENT_CHECK_ASC" value="select cmt_id from $db$.$tb$ where status_id=? and vflag=? and cmt_id &gt;=? and mflag=? order by cmt_id asc limit ?,?"/>
+                <entry key="GET_STATUS_COMMENT_PENDING_COUNT" value="select count(*) from $db$.$tb$ where status_id=? and vflag=0 and mflag not in (23,24,37,38,39) and uid &lt;&gt; ?"/>
+                <entry key="GET_STATUS_COMMENTMETA_TIMELINE_APPROVAL_DESC" value="select cmt_id,uid,vflag from $db$.$tb$ where status_id=? and ((vflag=? and mflag in (37,38,39)) or vflag=? or (mflag not in (37,38,39) and uid=?)) and cmt_id &gt;=? order by cmt_id desc limit ?"/>
+                <entry key="GET_STATUS_COMMENT_UNCHECK_ASC" value="select cmt_id from $db$.$tb$ where status_id=? and vflag=? and mflag not in (23,24,37,38,39) and cmt_id &gt;=? and uid &lt;&gt; ? order by cmt_id asc limit ?,?"/>
+            </map>
+        </property>
+        <property name="jdbcTemplates">
+            <list>
+                <ref bean="cmt_timeline_jdbctemplate_0"/>
+                <ref bean="cmt_timeline_jdbctemplate_1"/>
+                <ref bean="cmt_timeline_jdbctemplate_2"/>
+                <ref bean="cmt_timeline_jdbctemplate_3"/>
+                <ref bean="cmt_timeline_jdbctemplate_4"/>
+                <ref bean="cmt_timeline_jdbctemplate_5"/>
+                <ref bean="cmt_timeline_jdbctemplate_6"/>
+                <ref bean="cmt_timeline_jdbctemplate_7"/>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_timeline_jdbctemplate_0" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_timeline_0_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_timeline_0_s" />
+            </list>
+        </property>
+    </bean>
+
+
+    <bean id="cmt_timeline_jdbctemplate_1" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_timeline_1_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_timeline_1_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_timeline_jdbctemplate_2" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_timeline_2_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_timeline_2_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_timeline_jdbctemplate_3" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_timeline_3_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_timeline_3_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_timeline_jdbctemplate_4" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_timeline_4_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_timeline_4_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_timeline_jdbctemplate_5" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_timeline_5_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_timeline_5_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_timeline_jdbctemplate_6" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_timeline_6_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_timeline_6_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_timeline_jdbctemplate_7" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_timeline_7_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_timeline_7_s" />
+            </list>
+        </property>
+    </bean>
+
+    <weibo:mysql id="datasources_cmt_timeline_0_m"  parent="cmtTimelineBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.timeline.datasource.master_0.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_timeline_0_s"  parent="cmtTimelineBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.timeline.datasource.slave_0.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_timeline_1_m"  parent="cmtTimelineBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.timeline.datasource.master_1.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_timeline_1_s"  parent="cmtTimelineBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.timeline.datasource.slave_1.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_timeline_2_m"  parent="cmtTimelineBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.timeline.datasource.master_2.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_timeline_2_s"  parent="cmtTimelineBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.timeline.datasource.slave_2.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_timeline_3_m"  parent="cmtTimelineBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.timeline.datasource.master_3.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_timeline_3_s"  parent="cmtTimelineBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.timeline.datasource.slave_3.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_timeline_4_m"  parent="cmtTimelineBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.timeline.datasource.master_4.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_timeline_4_s"  parent="cmtTimelineBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.timeline.datasource.slave_4.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_timeline_5_m"  parent="cmtTimelineBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.timeline.datasource.master_5.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_timeline_5_s"  parent="cmtTimelineBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.timeline.datasource.slave_5.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_timeline_6_m"  parent="cmtTimelineBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.timeline.datasource.master_6.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_timeline_6_s"  parent="cmtTimelineBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.timeline.datasource.slave_6.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_timeline_7_m"  parent="cmtTimelineBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.timeline.datasource.master_7.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_timeline_7_s"  parent="cmtTimelineBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.timeline.datasource.slave_7.jdbcUrl}</value></property>
+    </weibo:mysql>
+</beans>
+

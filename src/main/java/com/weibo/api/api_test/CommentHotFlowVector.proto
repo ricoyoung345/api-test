@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+option java_package = "com.weibo.api.api_test";
+option java_outer_classname = "CommentHotFlowVectorWrap";
+
+message CommentHotFlowVector {
+    message CommentHotflowMeta {
+        uint64 cid = 201;
+        double score = 202;
+    }
+
+    repeated CommentHotflowMeta vector = 211 [packed=false];
+}

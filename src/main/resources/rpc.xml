@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:motan="http://api.weibo.com/schema/motan"
+       xsi:schemaLocation="
+        http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://api.weibo.com/schema/motan
+        http://api.weibo.com/schema/motan.xsd">
+
+    <motan:protocol name="motan" default="true" loadbalance="activeWeight" minClientConnection="2"/>
+
+    <motan:registry name="vintage_reg" regProtocol="vintage" address="config.api.weibo.com"
+                    port="80" requestTimeout="1000" registrySessionTimeout="10000"
+                    registryRetryPeriod="30000"/>
+
+    <motan:registry name="vintage_reg_activity" regProtocol="commandVintage" address="config.api.weibo.com" port="80"
+                    excise="static" requestTimeout="1000" registrySessionTimeout="10000"
+                    registryRetryPeriod="30000" />
+
+    <motan:registry name="vintage_reg_abtest" regProtocol="vintage" address="config.api.weibo.com" port="80"
+                    requestTimeout="1000" registrySessionTimeout="10000" registryRetryPeriod="30000"/>
+
+    <motan:protocol id="motan_activity_protocol" name="motan" default="true" loadbalance="activeWeight" />
+
+    <motan:basicReferer id="userClientBasicConfig"
+                        registry="vintage_reg" protocol="motan"
+                        application="user"
+                        module="yf-rpc"
+                        group="yf-rpc"
+                        requestTimeout="100"
+                        retries="2"
+                        accessLog="true"
+                        throwException="false"/>
+
+    <motan:basicReferer id="wbObjectClientBasicConfig"
+                        registry="vintage_reg" protocol="motan_activity_protocol"
+                        application="activity"
+                        module="wbobject"
+                        check="false"
+                        throwException="false"
+                        group="yf-activity-rpc"
+                        requestTimeout="100"
+                        accessLog="true"
+                        codec="motan" />
+
+    <motan:basicReferer id="abTestServiceBasicConfig" registry="vintage_reg_abtest" protocol="motan"
+                        application="abtest-rpc" module="yf-abtest-rpc" group="yf-abtest-rpc"
+                        requestTimeout="1000" accessLog="true"/>
+
+    <motan:basicReferer id="keyListRPCClientBasicConfig"
+                        registry="vintage_reg" protocol="motan"
+                        application="keylist-storage"
+                        module="keylist-storage"
+                        group="yf-repost-hbase-rpc"
+                        requestTimeout="2000"
+                        accessLog="true"/>
+
+    <!-- rpc service -->
+    <bean id="abTestThreadPool" class="com.weibo.api.abtest.ABTestNormalThreadPoolWrapper" init-method="init">
+        <property name="corePoolSize" value="10"/>
+        <property name="maximumPoolSize" value="20"/>
+    </bean>
+
+    <bean id="abTestClient" class="com.weibo.api.abtest.ABTestAdvancedClient">
+        <property name="abTestRPCService" ref="abTestRPCClient"/>
+        <property name="abTestRecordThreadPool" ref="abTestThreadPool"/>
+    </bean>
+
+    <bean id="repostKeyListService" class="cn.sina.api.data.keylist.KeyListServiceImpl" autowire="byName" lazy-init="true">
+        <constructor-arg index="0" value="repost" />
+        <property name="keyListStorageRPCService" ref="keyListStorageRPC" />
+    </bean>
+
+    <bean id="repostDao" class="cn.sina.api.data.dao.impl2.RepostDualDaoImpl" autowire="byName" lazy-init="true">
+        <property name="keylistService" ref="repostKeyListService" />
+    </bean>
+
+    <!-- 导出接口 -->
+    <motan:referer id="friendService" interface="cn.sina.api.data.service.FriendService" basicReferer="userClientBasicConfig"></motan:referer>
+    <motan:referer id="abTestRPCClient" interface="com.weibo.api.abtest.rpc.IABTestRPCService" basicReferer="abTestServiceBasicConfig"></motan:referer>
+    <motan:referer id="sinaUserService" interface="cn.sina.api.data.service.SinaUserService" basicReferer="userClientBasicConfig"/>
+    <motan:referer id="vClubService" interface="com.weibo.graph.service.VClubService" basicReferer="userClientBasicConfig" />
+    <motan:referer id="userActiveTagService" interface="cn.sina.api.user.service.UserActiveTagService" basicReferer="userClientBasicConfig"/>
+    <motan:referer id="userVerifiedService" interface="cn.sina.api.user.service.UserVerifiedService" basicReferer="userClientBasicConfig"/>
+    <motan:referer id="wbObjectRpcService"  interface="com.weibo.api.common.wbobject.service.WbobjectRpcService" basicReferer="wbObjectClientBasicConfig"/>
+    <motan:referer id="keyListStorageRPC" interface="cn.sina.api.data.keylist.KeyListStorageRPCService" basicReferer="keyListRPCClientBasicConfig" />
+</beans>

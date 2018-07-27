@@ -1,5 +1,33 @@
 package com.weibo.api.api_test;
 
+import cn.sina.api.commons.util.ApacheHttpClient;
+import cn.sina.api.commons.util.ApiUtil;
+import cn.sina.api.commons.util.ArrayUtil;
+import cn.sina.api.commons.util.Base62Parse;
+import cn.sina.api.commons.util.Util;
+import cn.sina.api.commons.util.UuidHelper;
+import cn.sina.api.data.dao.impl2.strategy.TableChannel;
+import cn.sina.api.data.dao.impl2.strategy.TableContainer;
+import cn.sina.api.data.model.BaseStatus;
+import cn.sina.api.data.model.Comment;
+import cn.sina.api.data.model.CommentHotFlowMeta;
+import cn.sina.api.data.model.CommentPBUtil;
+import cn.sina.api.data.model.StatusHelper;
+import cn.sina.api.data.util.StatusHotCommentUtil;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Queues;
+import com.google.common.collect.Sets;
+import com.weibo.api.commons.util.HashUtil;
+import org.apache.commons.collections.CollectionUtils;
+import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.ArrayUtils;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+import org.springframework.dao.DataAccessException;
+import org.springframework.jdbc.core.ResultSetExtractor;
+import org.springframework.jdbc.core.RowMapper;
+import reactor.function.support.UriUtils;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -15,58 +43,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Scanner;
 import java.util.Set;
-
-import cn.sina.api.data.dao.impl2.RepostDualDaoImpl;
-import cn.sina.api.data.dao.impl2.strategy.TableChannel;
-import cn.sina.api.data.dao.impl2.strategy.TableContainer;
-import cn.sina.api.data.dao.util.DaoUtil;
-import cn.sina.api.data.model.Comment;
-import cn.sina.api.data.model.CounterType;
-import cn.sina.api.data.storage.StorageAble;
-import cn.sina.api.data.util.ProfileLogUtils;
-import cn.sina.api.mcq.DataAccessType;
-import cn.sina.api.mcq.McqDataAccessException;
-import cn.sina.api.user.model.UserAttr;
-import com.weibo.api.engine.comment.context.CommentHotFlowRedisType;
-import com.weibo.api.engine.comment.service.CommentHotFlowRedisService;
-import com.weibo.api.feed.framework.model.ResourceMonitorUtil;
-import net.sf.json.JSONArray;
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang3.ArrayUtils;
-import org.springframework.context.support.ClassPathXmlApplicationContext;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Queues;
-import com.google.common.collect.Sets;
-import com.weibo.api.commons.util.HashUtil;
-
-import cn.sina.api.commons.util.ApacheHttpClient;
-import cn.sina.api.commons.util.ApiUtil;
-import cn.sina.api.commons.util.ArrayUtil;
-import cn.sina.api.commons.util.Base62Parse;
-import cn.sina.api.commons.util.Util;
-import cn.sina.api.commons.util.UuidHelper;
-import cn.sina.api.data.model.CommentHotFlowMeta;
-import cn.sina.api.data.util.StatusHotCommentUtil;
-import cn.sina.api.user.model.VerifiedTypeExt;
-import cn.sina.api.user.service.UserVerifiedService;
-import org.springframework.context.support.FileSystemXmlApplicationContext;
-import org.springframework.dao.DataAccessException;
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.util.ReflectionUtils;
-import reactor.function.support.UriUtils;
-
-import static com.weibo.api.feed.framework.model.ResourceMonitorUtil.BymeShow_4921_4928;
 
 /**
  * Hello world!
@@ -175,22 +157,139 @@ public class App
 		}*/
 
 		TableContainer tableContainer = (TableContainer) context.getBean("tableContainer");
-		final List<Long> ids = new ArrayList<Long>();
+
+		getBymeList(tableContainer);
+		updateBymeList(tableContainer);
+
+		getStatusList(tableContainer);
+		updateStatusList(tableContainer);
+
+		Comment comment = getComment(tableContainer, 4265759767614279L);
+		updateContentState(tableContainer, comment);
+
+		System.out.println("\ndone!");
+	}
+
+	private static void updateStatusList(TableContainer tableContainer) {
 		Date date = new Date(1530374400000L);
-		TableChannel tableChannel = tableContainer.getTableChannel("cmt_timeline", "GET_TIMELINE", 2368909530L, date);
-
+		TableChannel tableChannel = tableContainer.getTableChannel("status_cmt", "UPDATE_STATUS_CMT_STATE", 4264946021779761L, date);
 		String sql = tableChannel.getSql();
+		try {
+			boolean isUpdated = tableChannel.getJdbcTemplate().update(sql, new Object[]{0, 0, 4264946021779761L, 4265759767614279L, 0, 0}) > 0;
+			System.out.println("\nupdateStatusList");
+			System.out.println(isUpdated);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
 
-		tableChannel.getJdbcTemplate().query(sql, new Object[]{2368909530L, Comment.VFLAG_SHOW, 0 ,20}, new RowMapper(){
-			public Object mapRow(ResultSet rs, int id) throws SQLException {
-				ids.add(rs.getLong("cmt_id"));
+	private static void updateBymeList(TableContainer tableContainer) {
+		TableChannel tableChannel = tableContainer.getTableChannel("cmt_timeline", "UPDATE_TIMELINE_STATE", 6012794304L, 4265759767614279L);
+		String sql = tableChannel.getSql();
+		try {
+			boolean isUpdated = tableChannel.getJdbcTemplate().update(sql, new Object[]{0, 0, 6012794304L, 4265759767614279L, 0, 0}) > 0;
+			System.out.println("\nupdateBymeList");
+			System.out.println(isUpdated);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	public static boolean updateContentState(TableContainer tableContainer, Comment comment) {
+		if (comment == null) { return false; }
+
+		TableChannel tableChannel = tableContainer.getTableChannel("comment", "UPDATE_CONTENT", comment.id, comment.id);
+		String sql = tableChannel.getSql();
+		try {
+			System.out.println(CommentPBUtil.toDbPB(comment).length);
+			boolean isUpdated = tableChannel.getJdbcTemplate().update(sql, new Object[]{CommentPBUtil.toDbPB(comment), comment.id, CommentPBUtil.toDbPB(comment)}) > 0;
+			System.out.println("\nupdateContentState");
+			System.out.println(isUpdated);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return false;
+	}
+
+	private static void getBymeList(TableContainer tableContainer) {
+		try {
+			Date date = new Date(1530374400000L);
+			final List<BymeMeta> bymeMetas = Lists.newArrayList();
+			TableChannel bymeTableChannel = tableContainer.getTableChannel("cmt_timeline", "GET_TIMELINE", 6012794304L, date);
+			String sql = bymeTableChannel.getSql();
+
+			System.out.println("\ngetBymeList");
+			bymeTableChannel.getJdbcTemplate().query(sql, new Object[]{6012794304L, Comment.VFLAG_SHOW, 0 ,20}, new RowMapper(){
+				public Object mapRow(ResultSet rs, int id) throws SQLException {
+					BymeMeta bymeMeta = new BymeMeta();
+					bymeMeta.uid = rs.getLong("uid");
+					bymeMeta.cmt_id = rs.getLong("cmt_id");
+					bymeMeta.type = rs.getInt("type");
+					bymeMeta.mflag = rs.getInt("mflag");
+					bymeMeta.vflag = rs.getInt("vflag");
+					bymeMetas.add(bymeMeta);
+					return null;
+				}
+			});
+			for (BymeMeta bymeMeta : bymeMetas) {
+				System.out.println("uid:" + bymeMeta.uid + "\tcmt_id:" + bymeMeta.cmt_id + "\ttype:" + bymeMeta.type + "\tmflag:" + bymeMeta.mflag + "\tvflag:" + bymeMeta.vflag);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	private static void getStatusList(TableContainer tableContainer) {
+		try {
+			Date date = new Date(1530374400000L);
+			TableChannel statusTableChannel = tableContainer.getTableChannel("status_cmt", "GET_STATUS_COMMENTMETA_ALL_IN_MONTH", 4264946021779761L, date);
+			String statusSql = statusTableChannel.getSql();
+			Object[] paramsObject = new Object[]{ 4264946021779761L, Comment.VFLAG_SHOW};
+			final List<StatusMeta> statusMetas = Lists.newArrayList();
+
+			System.out.println("\ngetStatusList");
+			statusTableChannel.getJdbcTemplate().query(statusSql, paramsObject, new RowMapper() {
+				@Override
+				public Object mapRow(ResultSet rs, int i) throws SQLException {
+					StatusMeta statusMeta = new StatusMeta();
+					statusMeta.status_id = rs.getLong("status_id");
+					statusMeta.cmt_id = rs.getLong("cmt_id");
+					statusMeta.mflag = rs.getInt("mflag");
+					statusMeta.uid = rs.getLong("uid");
+					statusMeta.vflag = rs.getInt("vflag");
+					statusMetas.add(statusMeta);
+					return null;
+				}
+			});
+			for (StatusMeta statusMeta : statusMetas) {
+				System.out.println("status_id:" + statusMeta.status_id + "\tcmt_id:" + statusMeta.cmt_id + "\tmflag:" + statusMeta.mflag + "\tuid:" + statusMeta.uid + "\tvflag:" + statusMeta.vflag);
+			}
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	static Comment getComment(TableContainer tableContainer, long id) {
+		TableChannel channel = tableContainer.getTableChannel("comment", "GET_CONTENT", id, id);
+		String sql = channel.getSql();
+
+		Comment comment = (Comment)channel.getJdbcTemplate().query(sql, new Long[]{id}, new ResultSetExtractor(){
+			public Comment extractData(ResultSet rs) throws SQLException, DataAccessException {
+				if(rs.next()){
+					Comment comment = CommentPBUtil.parseFromPB(rs.getBytes("content"), true);
+					if(comment != null){
+						comment.id = rs.getLong("id");
+						return comment;
+					}
+				}
 				return null;
 			}
 		});
-		for (long id : ids) {
-			System.out.println(id);
-		}
-		System.out.println("done");
+		System.out.println("\ngetComment");
+		System.out.println(comment == null ? "nulll" : comment.id + ":" +comment.text);
+
+		return comment;
 	}
 
 	public static void testSwap () {
@@ -255,6 +354,7 @@ public class App
 			}
 		}
 	}
+
 	private static byte[][] stringKeysToByteArrayKeys(Collection stringKeys) {
 		if (org.apache.commons.collections.CollectionUtils.isEmpty(stringKeys)) {
 			return null;
@@ -662,4 +762,20 @@ public class App
 	private static void getRedisI(String desc, int startPort, long id, int hashGene, int tablePerDb) {
 		System.out.println(desc + (" port:" + (startPort + (HashUtil.getHash(id, hashGene, "crc32", "new") / tablePerDb))));
 	}
+}
+
+class BymeMeta {
+	public long uid;
+	public int vflag;
+	public int type;
+	public long cmt_id;
+	public int mflag;
+}
+
+class StatusMeta {
+	public long status_id;
+	public int vflag;
+	public long cmt_id;
+	public int mflag;
+	public long uid;
 }

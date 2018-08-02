@@ -3,11 +3,12 @@ package com.weibo.api.api_test;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
+import net.spy.memcached.CASValue;
 import net.spy.memcached.MemcachedClient;
 
 public class MCClient {
-	public static String HOST = "127.0.0.1";
-	public static int PORT = 11211;
+	public static String HOST = "10.75.3.28";
+	public static int PORT = 2021;
 	public static int ExpireTime = 3600;
 	public static MemcachedClient memcachedClient;
 
@@ -29,9 +30,9 @@ public class MCClient {
 	}
 
 	// 用spymemcached从缓存中取得对象
-	public static byte[] getValue(String key) {
+	public static <T> CASValue<T> getValue(String key) {
 		try {
-			return (byte[])memcachedClient.get(key);
+			return (CASValue<T>) memcachedClient.gets(key);
 		} catch (Exception ex) {
 			System.out.println("MCClient get failed, " +  ex);
 		}

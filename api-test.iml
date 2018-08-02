@@ -18,7 +18,7 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="Maven: junit:junit:4.0" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api:api-comment:2.256" level="project" />
-    <orderEntry type="library" name="Maven: com.weibo.api:api-graph:6.0.985-6.0.985" level="project" />
+    <orderEntry type="library" name="Maven: com.weibo.api:api-graph:6.0.992" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api:weibo-api-core:5.76" level="project" />
     <orderEntry type="library" name="Maven: commons-lang:commons-lang:2.6" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api:api-commons:4.153" level="project" />
@@ -92,7 +92,7 @@
     <orderEntry type="library" name="Maven: com.weibo:motan-springsupport:1.1.1" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api:motan-weibo-registry-vintage:0.0.4" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api:vintage-client:1.10" level="project" />
-    <orderEntry type="library" name="Maven: com.weibo.api:vintage-common:1.1.5" level="project" />
+    <orderEntry type="library" name="Maven: com.weibo.api:vintage-common:1.32" level="project" />
     <orderEntry type="library" name="Maven: org.springframework:spring-web:3.0.6.RELEASE" level="project" />
     <orderEntry type="library" name="Maven: com.101tec:zkclient:0.3" level="project" />
     <orderEntry type="library" name="Maven: commons-validator:commons-validator:1.4.0" level="project" />
@@ -119,7 +119,6 @@
     <orderEntry type="library" name="Maven: com.weibo.api:user-graph-common:6.0.767" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api:weibo-api-auth-core:8.107" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api:appinfo-service:1.32" level="project" />
-    <orderEntry type="library" name="Maven: com.weibo.api:weibo-api-weiservice-core:1.04" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api:weibo-api-tauth2-core:1.1" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api:cedrus:2.73" level="project" />
     <orderEntry type="library" name="Maven: com.sun.jersey:jersey-server:1.4" level="project" />
@@ -156,8 +155,8 @@
     <orderEntry type="library" name="Maven: com.mchange:mchange-commons-java:0.2.11" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api:api-statuses:2.302" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api:api-common-rpc:0.0.87" level="project" />
-    <orderEntry type="library" name="Maven: com.weibo.api:weibo-object-data:1.21" level="project" />
-    <orderEntry type="library" name="Maven: com.weibo.api:remind-service:4.72" level="project" />
+    <orderEntry type="library" name="Maven: com.weibo.api:weibo-object-data:1.20" level="project" />
+    <orderEntry type="library" name="Maven: com.weibo.api:remind-service:4.73" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api.directmessage:directmessage-core:1.1.137" level="project" />
     <orderEntry type="library" name="Maven: cn.sina.api.groupchat:groupchat-client:2.4" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api.noticeCenter:nc-rpc-client:1.0.8" level="project" />
@@ -205,11 +204,11 @@
     <orderEntry type="library" name="Maven: com.weibo.api.ab-test:ab-test-rpc-client:2.0.204" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api.ab-test:ab-test-core:2.0.204" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api:common-comment-service-interface:0.0.10" level="project" />
-    <orderEntry type="library" name="Maven: com.weibo.api:api-engine:2.1129-SNAPSHOT" level="project" />
+    <orderEntry type="library" name="Maven: com.weibo.api:api-engine:2.1136" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api:cardservice:1.14" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.datasys:alg-motan-client:1.7.39" level="project" />
-    <orderEntry type="library" name="Maven: com.weibo.api:feed-service:1.245" level="project" />
-    <orderEntry type="library" name="Maven: com.weibo.api:apollo:0.125" level="project" />
+    <orderEntry type="library" name="Maven: com.weibo.api:feed-service:1.249" level="project" />
+    <orderEntry type="library" name="Maven: com.weibo.api:apollo:0.127" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api:weibus-client:0.1.0" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api:weibus-commons:0.1.0" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api:weibus-queue:0.1.0" level="project" />
@@ -224,6 +223,7 @@
     <orderEntry type="library" name="Maven: asm:asm-commons:3.1" level="project" />
     <orderEntry type="library" name="Maven: asm:asm-tree:3.1" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.FeedSort:ml-feed-sort-client:1.0.22" level="project" />
+    <orderEntry type="library" name="Maven: com.weibo.api:weibo-api-weiservice-core:1.04" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api:api-favorite:1.14" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api.activity:activity-engine:2.0.17" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api.activity:activity-service:2.0.17" level="project" />
@@ -276,6 +276,13 @@
     <orderEntry type="library" name="Maven: com.whalin:Memcached-Java-Client:3.0.2" level="project" />
     <orderEntry type="library" name="Maven: spy:memcached:2.5" level="project" />
     <orderEntry type="library" name="Maven: com.sun.tools.btrace:btrace-client:1.2" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.poi:poi:3.9" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.poi:poi-excelant:3.9" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.poi:poi-ooxml:3.9" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.poi:poi-ooxml-schemas:3.9" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.xmlbeans:xmlbeans:2.3.0" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.ant:ant:1.8.2" level="project" />
+    <orderEntry type="library" name="Maven: org.apache.ant:ant-launcher:1.8.2" level="project" />
     <orderEntry type="library" name="Maven: com.weibo.api:motan-weibo-protocol-mcq:0.0.4" level="project" />
   </component>
 </module>

@@ -32,8 +32,7 @@ class ListNode {
 public class Solution {
     public static void main(String[] args) {
         Solution solution = new Solution();
-        String WEIBO_DOMAIN_PATTERN = "http(s)?://(\\w+\\.)*weibo\\.(((com|cn|com\\.cn)(/|\\?).*)|(com|cn|com\\.cn)$)";
-        String SINA_DOMAIN_PATTERN = "http(s)?://(\\w+\\.)*sina\\.(((com|cn|com\\.cn)(/|\\?).*)|(com|cn|com\\.cn)$)";
+        System.out.println(solution.uniquePaths(4, 3));
     }
 
     /**
@@ -2179,12 +2178,139 @@ public class Solution {
 
         int[] min = new int[length];
         min[0] = cost[0];
-        min[1] = Math.min(cost[0], cost[1]);
+        min[1] = cost[1];
+        min[2] = Math.min(cost[0] + cost[2], cost[1] + cost[2]);
 
-        for (int i = 2; i < length; i++) {
-            min[i] = Math.min(min[i - 2] + Math.min(cost[i - 1], cost[i]), min[i - 1]);
+        for (int i = 3; i < length; i++) {
+            min[i] = Math.min(min[i-1] + cost[i], min[i-2] + cost[i]);
         }
 
-        return min[length - 1];
+        return Math.min(min[length - 2], min[length - 1]);
+    }
+
+    public int uniquePaths(int m, int n) {
+        if (m <= 1 || n <= 1) {
+            return 1;
+        }
+
+        int[][] grid = new int[n][m];
+
+        for (int i = 0; i < n; i++) {
+            grid[i][0] = 1;
+        }
+
+        for (int i = 0; i < m; i++) {
+            grid[0][i] = 1;
+        }
+
+        for (int i = 1; i < n; i++) {
+            for (int j = 1; j < m; j++) {
+                grid[i][j] = grid[i - 1][j] + grid[i][j - 1];
+            }
+        }
+
+        return grid[n-1][m-1];
+    }
+
+    public int uniquePathsWithObstacles(int[][] obstacleGrid) {
+        if (obstacleGrid == null) {
+            return 0;
+        }
+
+        int horizontallength = obstacleGrid[0].length;
+        int verticallength = obstacleGrid.length;
+
+        obstacleGrid[0][0] = (obstacleGrid[0][0] == 1 ? 0 : 1);
+        for (int i = 1; i < horizontallength; i++) {
+            if (obstacleGrid[0][i] == 1) {
+                obstacleGrid[0][i] = 0;
+            } else {
+                obstacleGrid[0][i] = obstacleGrid[0][i - 1];
+            }
+        }
+
+        for (int i = 1; i < verticallength; i++) {
+            if (obstacleGrid[i][0] == 1) {
+                obstacleGrid[i][0] = 0;
+            } else {
+                obstacleGrid[i][0] = obstacleGrid[i - 1][0];
+            }
+        }
+
+        for (int i = 1; i < verticallength; i++) {
+            for (int j = 1; j < horizontallength; j++) {
+                if (obstacleGrid[i][j] == 1) {
+                    obstacleGrid[i][j] = 0;
+                } else {
+                    obstacleGrid[i][j] = obstacleGrid[i - 1][j] + obstacleGrid[i][j - 1];
+                }
+            }
+        }
+
+        return obstacleGrid[verticallength - 1][horizontallength - 1];
+    }
+
+    public int minPathSum(int[][] grid) {
+        if (grid == null) {
+            return 0;
+        }
+
+        int horizontallength = grid[0].length;
+        int verticallength = grid.length;
+
+        for (int i = 1; i < verticallength; i++) { grid[i][0] += grid[i - 1][0]; }
+        for (int i = 1; i < horizontallength; i++) { grid[0][i] += grid[0][i - 1]; }
+
+        for (int i = 1; i < verticallength; i++) {
+            for (int j = 1; j < horizontallength; j++) {
+                grid[i][j] += Math.min(grid[i - 1][j], grid[i][j - 1]);
+            }
+        }
+
+        return grid[verticallength - 1][horizontallength - 1];
+    }
+
+    public int coinChange(int[] coins, int amount) {
+        if (coins == null || amount <= 0) { return  -1; }
+
+        Arrays.sort(coins);
+
+        int maxInt = Integer.MAX_VALUE;
+        int[] dp = new int[amount + 1];
+        for (int i = 0; i <= amount; i++) { dp[i] = maxInt; }
+
+        for (int coin : coins) { if (coin <= amount) {dp[coin] = 1;} }
+        for (int i = 1; i <= amount; i++) {
+            for (int j = 0; j < coins.length; j++) {
+                if (i - coins[j] > 0 && dp[i - coins[j]] != maxInt) { dp[i] = Math.min(dp[i], dp[i - coins[j]] + 1); }
+            }
+        }
+
+        return dp[amount] == maxInt ? -1 : dp[amount];
+    }
+
+    public int calculateMinimumHP(int[][] dungeon) {
+        if (dungeon == null) { return 1; }
+
+        int verticalLength = dungeon.length;
+        int horizontalLength = dungeon[0].length;
+        int[][] minMatrix = new int[verticalLength][horizontalLength];
+
+        for (int i = 1; i < horizontalLength; i++) {
+            dungeon[0][i] += dungeon[0][i - 1];
+            dungeon[0][i] += dungeon[0][i - 1];
+        }
+        for (int i = 1; i < verticalLength; i++) {
+            dungeon[i][0] += dungeon[i - 1][0];
+            dungeon[i][0] += dungeon[i - 1][0];
+        }
+
+        for (int i = 0; i < verticalLength; i++) {
+            for (int j = 0; j < horizontalLength; j++) {
+                dungeon[i][j] += Math.min(dungeon[i - 1][j], dungeon[i][j - 1]);
+            }
+        }
+
+        return Math.abs(dungeon[verticalLength - 1][horizontalLength - 1]) + 1;
     }
 }

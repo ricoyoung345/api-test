@@ -85,4 +85,5 @@
     <motan:referer id="userVerifiedService" interface="cn.sina.api.user.service.UserVerifiedService" basicReferer="userClientBasicConfig"/>
     <motan:referer id="wbObjectRpcService"  interface="com.weibo.api.common.wbobject.service.WbobjectRpcService" basicReferer="wbObjectClientBasicConfig"/>
     <motan:referer id="keyListStorageRPC" interface="cn.sina.api.data.keylist.KeyListStorageRPCService" basicReferer="keyListRPCClientBasicConfig" />
+    <motan:referer id="userService" interface="cn.sina.api.user.service.UserService" basicReferer="userClientBasicConfig"></motan:referer>
 </beans>

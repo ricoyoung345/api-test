@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:weibo="http://api.weibo.com/schema/weibo"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://api.weibo.com/schema/weibo http://api.weibo.com/schema/weibo.xsd">
+
+    <weibo:mc id="memCache" serverPort="${base.memcache}" strategy="normal_mc" primitiveAsString="true"></weibo:mc>
+
+    <bean id="mblogAuthService" class="com.weibo.api.core.service.MblogAuthServiceImpl" autowire="byName">
+        <property name="tokenCache" ref="memCache"></property>
+    </bean>
+</beans>

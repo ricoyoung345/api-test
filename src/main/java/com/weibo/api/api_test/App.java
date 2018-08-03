@@ -8,9 +8,12 @@ import cn.sina.api.commons.util.Base62Parse;
 import cn.sina.api.commons.util.Util;
 import cn.sina.api.data.dao.impl2.strategy.TableChannel;
 import cn.sina.api.data.dao.impl2.strategy.TableContainer;
+import cn.sina.api.data.model.BaseStatus;
+import cn.sina.api.data.model.CmtTreeBean;
 import cn.sina.api.data.model.Comment;
 import cn.sina.api.data.model.CommentHotFlowMeta;
 import cn.sina.api.data.model.CommentPBUtil;
+import cn.sina.api.data.model.StatusHelper;
 import cn.sina.api.data.service.SinaUserService;
 import cn.sina.api.data.util.StatusHotCommentUtil;
 import cn.sina.api.user.model.UserAttr;
@@ -1271,13 +1274,15 @@ public class App
 			}
 		}*/
 
+		Date date = new Date(1533052800000L);
 		TableContainer tableContainer = (TableContainer) context.getBean("tableContainer");
 
 		/*getBymeList(tableContainer);
 		updateBymeList(tableContainer);*/
 
-		// getStatusList(tableContainer, sinaUserService);
-		List<Long> ids = Lists.newArrayList(4268139385138083L,4268165930287938L,4268281898486792L,4268139917799138L,4268282829913186L);
+		// getStatusShowList(tableContainer, sinaUserService);
+		getCommentTreeList(tableContainer, sinaUserService, true, false, 4268594756270940L, 20, date);
+		/*List<Long> ids = Lists.newArrayList(4268139385138083L,4268165930287938L,4268281898486792L,4268139917799138L,4268282829913186L);
 		SimpleDateFormat dateFormater = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 		for (long id : ids) {
 			//System.out.println("status_id:" + statusMeta.status_id + "\tcmt_id:" + statusMeta.cmt_id + "\tmflag:" + statusMeta.mflag + "\tuid:" + statusMeta.uid + "\tvflag:" + statusMeta.vflag);
@@ -1293,7 +1298,7 @@ public class App
 			sb.append(GetAddressByIp(comment.ip)).append("\t");
 			sb.append(dateFormater.format(comment.created_at));
 			System.out.println(sb.toString());
-		}
+		}*/
 		/*updateStatusList(tableContainer);
 
 		Comment comment = getComment(tableContainer, 4265759767614279L);
@@ -1372,12 +1377,12 @@ public class App
 		}
 	}
 
-	private static void getStatusList(TableContainer tableContainer, SinaUserService sinaUserService) {
+	private static void getStatusShowList(TableContainer tableContainer, SinaUserService sinaUserService) {
 		try {
 			Date date = new Date(1533052800000L);
-			TableChannel statusTableChannel = tableContainer.getTableChannel("status_cmt", "GET_STATUS_COMMENTMETA_ALL_IN_MONTH", 4268139338234676L, date);
+			TableChannel statusTableChannel = tableContainer.getTableChannel("status_cmt", "GET_STATUS_COMMENTMETA_ALL_IN_MONTH", 4268594756270940L, date);
 			String statusSql = statusTableChannel.getSql();
-			Object[] paramsObject = new Object[]{ 4268139338234676L, Comment.VFLAG_SHOW};
+			Object[] paramsObject = new Object[]{ 4268594756270940L, Comment.VFLAG_SHOW};
 			final List<StatusMeta> statusMetas = Lists.newArrayList();
 
 			statusTableChannel.getJdbcTemplate().query(statusSql, paramsObject, new RowMapper() {
@@ -1409,6 +1414,73 @@ public class App
 			}
 		}catch (Exception e) {
 			e.printStackTrace();
+		}
+	}
+
+	private static void getCommentTreeList(TableContainer tableContainer, SinaUserService sinaUserService, boolean isMid, boolean isAsc, long id, int count, Date createdDate) {
+		String tableName = isMid ? "cmt_tree_mid_rootid" : "cmt_tree_rootid_childid";
+		String sqlName = isMid ?
+				isAsc ? "GET_ROOT_COMMENT_ASC" : "GET_ROOT_COMMENT_DESC":
+				isAsc ? "GET_CHILD_COMMENT_ASC" : "GET_CHILD_COMMENT_DESC";
+		TableChannel tableChannel = tableContainer.getTableChannel(tableName, sqlName, id, createdDate);
+		String sql = tableChannel.getSql();
+
+		List<CmtTreeBean> list = Lists.newArrayList();
+		if (isMid) {
+			tableChannel.getJdbcTemplate().query(sql, new Object[] { id, count }, new RowMapper() {
+				@Override
+				public Object mapRow(ResultSet rs, int i) throws SQLException {
+					CmtTreeBean item = new CmtTreeBean();
+					item.setRoot_id(rs.getLong("mid"));
+					item.setChild_id(rs.getLong("cmt_root_id"));
+					item.setVflag(rs.getInt("vflag"));
+					item.setMflag(rs.getInt("mflag"));
+					list.add(item);
+					return null;
+				}
+			});
+		} else {
+			tableChannel.getJdbcTemplate().query(sql, new Object[] { id, count }, new RowMapper() {
+				@Override
+				public Object mapRow(ResultSet rs, int i) throws SQLException {
+					CmtTreeBean item = new CmtTreeBean();
+					item.setRoot_id(rs.getLong("cmt_root_id"));
+					item.setChild_id(rs.getLong("cmt_child_id"));
+					item.setVflag(rs.getInt("vflag"));
+					item.setMflag(rs.getInt("mflag"));
+					list.add(item);
+					return null;
+				}
+			});
+		}
+
+		SimpleDateFormat dateFormater = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss");
+		for (CmtTreeBean cmtTreeBean : list) {
+			//System.out.println("status_id:" + statusMeta.status_id + "\tcmt_id:" + statusMeta.cmt_id + "\tmflag:" + statusMeta.mflag + "\tuid:" + statusMeta.uid + "\tvflag:" + statusMeta.vflag);
+			Comment comment = getComment(tableContainer, cmtTreeBean.getChild_id());
+			StringBuilder sb = new StringBuilder();
+			sb.append(dateFormater.format(comment.created_at)).append("\t");
+			sb.append(getState(comment)).append("\t");
+			sb.append(comment.text).append("\t");
+			SinaUser sinaUser = sinaUserService.getSinaUser(comment.getAuthorId());
+			sb.append(sinaUser != null ? sinaUser.screen_name : "frozen_user").append("\t");
+			sb.append(comment.ip);
+			System.out.println(sb.toString());
+		}
+	}
+
+	private static String getState(Comment comment) {
+		if (comment == null) {
+			return "";
+		}
+
+		int apiState = StatusHelper.getApiStateByState(comment.state);
+		if (apiState == BaseStatus.STATE_SHOW) {
+			return "公开可见";
+		} else if (apiState == BaseStatus.STATE_SHOW_SELF) {
+			return "仅评论人可见";
+		} else {
+			return "已删除";
 		}
 	}
 

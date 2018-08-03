@@ -26,6 +26,8 @@ http://api.weibo.com/schema/weibo http://api.weibo.com/schema/weibo.xsd ">
                 <entry key="status_cmt" value-ref="status_cmt"/>
                 <entry key="cmt_timeline" value-ref="cmt_timeline"/>
                 <entry key="comment" value-ref="comment"/>
+                <entry key="cmt_tree_mid_rootid" value-ref="cmt_tree_mid_rootid"/>
+                <entry key="cmt_tree_rootid_childid" value-ref="cmt_tree_rootid_childid"/>
             </map>
         </property>
     </bean>
@@ -116,6 +118,63 @@ http://api.weibo.com/schema/weibo http://api.weibo.com/schema/weibo.xsd ">
         </property>
     </bean>
 
+    <bean id="cmt_tree_mid_rootid" class="cn.sina.api.data.dao.impl2.strategy.TableItem">
+        <property name="itemName" value="cmt_tree"/>
+        <property name="dbNamePrefix"  value="cmt_tree"/>
+        <property name="dbCount"  value="32"/>
+
+        <property name="tableNamePrefix" value="mid_rootid" />
+        <property name="tableNamePostFix" value="yymm" /> <!-- 默认是索引 -->
+        <property name="tableCount" value="1" />            <!-- 这个参数和tableNamePostFix有关系，如果是日期就不用了。 -->
+        <property name="sqls">
+            <map>
+                <entry key="GET_ROOT_COMMENT_DESC" value="select mid, cmt_root_id, vflag, mflag from $db$.$tb$ where mid=? order by cmt_root_id desc limit ?"/>
+                <entry key="GET_ROOT_COMMENT_ASC" value="select mid, cmt_root_id, vflag, mflag from $db$.$tb$ where mid=? order by cmt_root_id asc limit ?"/>
+            </map>
+        </property>
+        <property name="jdbcTemplates">
+            <list>
+                <ref bean="cmt_tree_mid_rootid_jdbctemplate_0"/>
+                <ref bean="cmt_tree_mid_rootid_jdbctemplate_1"/>
+                <ref bean="cmt_tree_mid_rootid_jdbctemplate_2"/>
+                <ref bean="cmt_tree_mid_rootid_jdbctemplate_3"/>
+                <ref bean="cmt_tree_mid_rootid_jdbctemplate_4"/>
+                <ref bean="cmt_tree_mid_rootid_jdbctemplate_5"/>
+                <ref bean="cmt_tree_mid_rootid_jdbctemplate_6"/>
+                <ref bean="cmt_tree_mid_rootid_jdbctemplate_7"/>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_tree_rootid_childid" class="cn.sina.api.data.dao.impl2.strategy.TableItem">
+        <property name="itemName" value="cmt_tree_child"/>
+        <property name="dbNamePrefix"  value="cmt_tree_child"/>
+        <property name="dbCount"  value="32"/>
+
+        <property name="tableNamePrefix" value="rootid_childid" />
+        <property name="tableNamePostFix" value="yymm" /> <!-- 默认是索引 -->
+        <property name="tableCount" value="1" />            <!-- 这个参数和tableNamePostFix有关系，如果是日期就不用了。 -->
+        <property name="sqls">
+            <map>
+                <entry key="GET_CHILD_COMMENT_DESC" value="select cmt_root_id, cmt_child_id, vflag, mflag from $db$.$tb$ where cmt_root_id=? order by cmt_child_id desc limit ?"/>
+                <entry key="GET_CHILD_COMMENT_ASC" value="select cmt_root_id, cmt_child_id, vflag, mflag from $db$.$tb$ where cmt_root_id=? order by cmt_child_id asc limit ?"/>
+            </map>
+        </property>
+        <property name="jdbcTemplates">
+            <list>
+                <ref bean="cmt_tree_rootid_childid_jdbctemplate_0"/>
+                <ref bean="cmt_tree_rootid_childid_jdbctemplate_1"/>
+                <ref bean="cmt_tree_rootid_childid_jdbctemplate_2"/>
+                <ref bean="cmt_tree_rootid_childid_jdbctemplate_3"/>
+                <ref bean="cmt_tree_rootid_childid_jdbctemplate_4"/>
+                <ref bean="cmt_tree_rootid_childid_jdbctemplate_5"/>
+                <ref bean="cmt_tree_rootid_childid_jdbctemplate_6"/>
+                <ref bean="cmt_tree_rootid_childid_jdbctemplate_7"/>
+            </list>
+        </property>
+    </bean>
+
+
     <bean id="cmt_timeline_jdbctemplate_0" class="cn.sina.api.data.dao.util.JdbcTemplate">
         <property name="dataSource">
             <ref bean="datasources_cmt_timeline_0_m" />
@@ -126,7 +185,6 @@ http://api.weibo.com/schema/weibo http://api.weibo.com/schema/weibo.xsd ">
             </list>
         </property>
     </bean>
-
 
     <bean id="cmt_timeline_jdbctemplate_1" class="cn.sina.api.data.dao.util.JdbcTemplate">
         <property name="dataSource">
@@ -390,5 +448,282 @@ http://api.weibo.com/schema/weibo http://api.weibo.com/schema/weibo.xsd ">
     <weibo:mysql id="datasources_comment_7_s"  parent="commentBaseDataSource" strategy="slave">
         <property name="jdbcUrl"><value>${comment.content.datasource.slave_7.jdbcUrl}</value></property>
     </weibo:mysql>
+
+    <bean id="cmt_tree_mid_rootid_jdbctemplate_0" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_tree_mid_rootid_0_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_tree_mid_rootid_0_s" />
+            </list>
+        </property>
+    </bean>
+
+
+    <bean id="cmt_tree_mid_rootid_jdbctemplate_1" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_tree_mid_rootid_1_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_tree_mid_rootid_1_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_tree_mid_rootid_jdbctemplate_2" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_tree_mid_rootid_2_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_tree_mid_rootid_2_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_tree_mid_rootid_jdbctemplate_3" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_tree_mid_rootid_3_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_tree_mid_rootid_3_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_tree_mid_rootid_jdbctemplate_4" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_tree_mid_rootid_4_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_tree_mid_rootid_4_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_tree_mid_rootid_jdbctemplate_5" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_tree_mid_rootid_5_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_tree_mid_rootid_5_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_tree_mid_rootid_jdbctemplate_6" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_tree_mid_rootid_6_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_tree_mid_rootid_6_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_tree_mid_rootid_jdbctemplate_7" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_tree_mid_rootid_7_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_tree_mid_rootid_7_s" />
+            </list>
+        </property>
+    </bean>
+
+    <weibo:mysql id="datasources_cmt_tree_mid_rootid_0_m"  parent="commentBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.tree.mid.rootid.datasource.master_0.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_mid_rootid_0_s"  parent="commentBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.tree.mid.rootid.datasource.slave_0.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_mid_rootid_1_m"  parent="commentBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.tree.mid.rootid.datasource.master_1.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_mid_rootid_1_s"  parent="commentBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.tree.mid.rootid.datasource.slave_1.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_mid_rootid_2_m"  parent="commentBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.tree.mid.rootid.datasource.master_2.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_mid_rootid_2_s"  parent="commentBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.tree.mid.rootid.datasource.slave_2.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_mid_rootid_3_m"  parent="commentBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.tree.mid.rootid.datasource.master_3.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_mid_rootid_3_s"  parent="commentBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.tree.mid.rootid.datasource.slave_3.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_mid_rootid_4_m"  parent="commentBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.tree.mid.rootid.datasource.master_4.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_mid_rootid_4_s"  parent="commentBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.tree.mid.rootid.datasource.slave_4.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_mid_rootid_5_m"  parent="commentBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.tree.mid.rootid.datasource.master_5.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_mid_rootid_5_s"  parent="commentBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.tree.mid.rootid.datasource.slave_5.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_mid_rootid_6_m"  parent="commentBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.tree.mid.rootid.datasource.master_6.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_mid_rootid_6_s"  parent="commentBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.tree.mid.rootid.datasource.slave_6.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_mid_rootid_7_m"  parent="commentBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.tree.mid.rootid.datasource.master_7.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_mid_rootid_7_s"  parent="commentBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.tree.mid.rootid.datasource.slave_7.jdbcUrl}</value></property>
+    </weibo:mysql>
+
+    <bean id="cmt_tree_rootid_childid_jdbctemplate_0" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_tree_rootid_childid_0_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_tree_rootid_childid_0_s" />
+            </list>
+        </property>
+    </bean>
+
+
+    <bean id="cmt_tree_rootid_childid_jdbctemplate_1" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_tree_rootid_childid_1_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_tree_rootid_childid_1_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_tree_rootid_childid_jdbctemplate_2" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_tree_rootid_childid_2_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_tree_rootid_childid_2_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_tree_rootid_childid_jdbctemplate_3" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_tree_rootid_childid_3_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_tree_rootid_childid_3_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_tree_rootid_childid_jdbctemplate_4" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_tree_rootid_childid_4_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_tree_rootid_childid_4_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_tree_rootid_childid_jdbctemplate_5" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_tree_rootid_childid_5_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_tree_rootid_childid_5_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_tree_rootid_childid_jdbctemplate_6" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_tree_rootid_childid_6_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_tree_rootid_childid_6_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="cmt_tree_rootid_childid_jdbctemplate_7" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_cmt_tree_rootid_childid_7_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_cmt_tree_rootid_childid_7_s" />
+            </list>
+        </property>
+    </bean>
+
+    <weibo:mysql id="datasources_cmt_tree_rootid_childid_0_m"  parent="commentBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.tree.rootid.childid.datasource.master_0.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_rootid_childid_0_s"  parent="commentBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.tree.rootid.childid.datasource.slave_0.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_rootid_childid_1_m"  parent="commentBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.tree.rootid.childid.datasource.master_1.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_rootid_childid_1_s"  parent="commentBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.tree.rootid.childid.datasource.slave_1.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_rootid_childid_2_m"  parent="commentBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.tree.rootid.childid.datasource.master_2.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_rootid_childid_2_s"  parent="commentBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.tree.rootid.childid.datasource.slave_2.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_rootid_childid_3_m"  parent="commentBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.tree.rootid.childid.datasource.master_3.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_rootid_childid_3_s"  parent="commentBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.tree.rootid.childid.datasource.slave_3.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_rootid_childid_4_m"  parent="commentBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.tree.rootid.childid.datasource.master_4.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_rootid_childid_4_s"  parent="commentBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.tree.rootid.childid.datasource.slave_4.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_rootid_childid_5_m"  parent="commentBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.tree.rootid.childid.datasource.master_5.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_rootid_childid_5_s"  parent="commentBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.tree.rootid.childid.datasource.slave_5.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_rootid_childid_6_m"  parent="commentBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.tree.rootid.childid.datasource.master_6.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_rootid_childid_6_s"  parent="commentBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.tree.rootid.childid.datasource.slave_6.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_rootid_childid_7_m"  parent="commentBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${comment.tree.rootid.childid.datasource.master_7.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_cmt_tree_rootid_childid_7_s"  parent="commentBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${comment.tree.rootid.childid.datasource.slave_7.jdbcUrl}</value></property>
+    </weibo:mysql>
+
 </beans>
 

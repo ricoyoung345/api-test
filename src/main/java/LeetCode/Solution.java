@@ -2298,7 +2298,6 @@ public class Solution {
 
         for (int i = 1; i < horizontalLength; i++) {
             dungeon[0][i] += dungeon[0][i - 1];
-            dungeon[0][i] += dungeon[0][i - 1];
         }
         for (int i = 1; i < verticalLength; i++) {
             dungeon[i][0] += dungeon[i - 1][0];

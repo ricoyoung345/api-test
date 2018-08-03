@@ -83,7 +83,7 @@ import java.util.Set;
 public class App 
 {
 	public static void main(String[] args) {
-		beanReader();
+		System.out.println(Base62Parse.encode(4266525668142902L));;
 		System.out.println("wait");
 	}
 
@@ -1281,7 +1281,7 @@ public class App
 		updateBymeList(tableContainer);*/
 
 		// getStatusShowList(tableContainer, sinaUserService);
-		getCommentTreeList(tableContainer, sinaUserService, true, false, 4268594756270940L, 20, date);
+		getCommentTreeList(tableContainer, sinaUserService, true, false, 4268929662208127L, 20, date);
 		/*List<Long> ids = Lists.newArrayList(4268139385138083L,4268165930287938L,4268281898486792L,4268139917799138L,4268282829913186L);
 		SimpleDateFormat dateFormater = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 		for (long id : ids) {

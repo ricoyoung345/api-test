@@ -32,7 +32,11 @@ class ListNode {
 public class Solution {
     public static void main(String[] args) {
         Solution solution = new Solution();
-        System.out.println(solution.uniquePaths(4, 3));
+        int[][] dungen = new int[3][3];
+        dungen[0] = new int[]{-2,-3,3};
+        dungen[1] = new int[]{-5,-10,1};
+        dungen[2] = new int[]{10,30,-5};
+        System.out.println(solution.calculateMinimumHP(dungen));
     }
 
     /**
@@ -2289,27 +2293,103 @@ public class Solution {
         return dp[amount] == maxInt ? -1 : dp[amount];
     }
 
+    /**
+     * 逆向思维，从某处触发需要的血量
+     * @param dungeon
+     * @return
+     */
     public int calculateMinimumHP(int[][] dungeon) {
         if (dungeon == null) { return 1; }
 
         int verticalLength = dungeon.length;
         int horizontalLength = dungeon[0].length;
-        int[][] minMatrix = new int[verticalLength][horizontalLength];
 
-        for (int i = 1; i < horizontalLength; i++) {
-            dungeon[0][i] += dungeon[0][i - 1];
-        }
-        for (int i = 1; i < verticalLength; i++) {
-            dungeon[i][0] += dungeon[i - 1][0];
-            dungeon[i][0] += dungeon[i - 1][0];
+        if (dungeon[verticalLength - 1][horizontalLength - 1] < 0) {
+            dungeon[verticalLength - 1][horizontalLength - 1] = Math.abs(dungeon[verticalLength - 1][horizontalLength - 1]);
+        } else {
+            dungeon[verticalLength - 1][horizontalLength - 1] = 0;
         }
 
-        for (int i = 0; i < verticalLength; i++) {
-            for (int j = 0; j < horizontalLength; j++) {
-                dungeon[i][j] += Math.min(dungeon[i - 1][j], dungeon[i][j - 1]);
+        for (int i = verticalLength - 2; i >= 0; i--) {
+            if (dungeon[i][horizontalLength - 1] >= 0) {
+                dungeon[i][horizontalLength - 1] = Math.max(dungeon[i + 1][horizontalLength - 1] - dungeon[i][horizontalLength - 1], 0);
+            } else {
+                dungeon[i][horizontalLength - 1] = dungeon[i + 1][horizontalLength - 1] + Math.abs(dungeon[i][horizontalLength - 1]);
             }
         }
 
-        return Math.abs(dungeon[verticalLength - 1][horizontalLength - 1]) + 1;
+        for (int i = horizontalLength - 2; i >= 0; i--) {
+            if (dungeon[verticalLength - 1][i] >= 0) {
+                dungeon[verticalLength - 1][i] = Math.max(dungeon[verticalLength - 1][i + 1] - dungeon[verticalLength - 1][i], 0);
+            } else {
+                dungeon[verticalLength - 1][i] = dungeon[verticalLength - 1][i + 1] + Math.abs(dungeon[verticalLength - 1][i]);
+            }
+        }
+
+        for (int i = verticalLength - 2; i >= 0; i--) {
+            for (int j = horizontalLength - 2; j >= 0; j--) {
+                if (dungeon[i][j] >= 0) {
+                    dungeon[i][j] = Math.max(Math.min(dungeon[i + 1][j], dungeon[i][j + 1]) - dungeon[i][j], 0);
+                } else {
+                    dungeon[i][j] = Math.min(dungeon[i + 1][j], dungeon[i][j + 1]) + Math.abs(dungeon[i][j]);
+                }
+            }
+        }
+
+        return dungeon[0][0] + 1;
+    }
+
+    /**
+     * 摘樱桃
+     * @param grid
+     * @return
+     */
+    public int cherryPickup(int[][] grid) {
+        if (grid == null) {
+            return 0;
+        }
+
+        int verticalLength = grid.length;
+        int horizontalLength = grid[0].length;
+        int[][] leftTop2RightBottom = new int[verticalLength][horizontalLength];
+        for (int i = 0; i < verticalLength; i++) { leftTop2RightBottom[i] = grid[i]; }
+
+        for (int i = verticalLength - 2; i >= 0; i--) {
+            if (leftTop2RightBottom[i][horizontalLength - 1] >= 0) {
+                if (leftTop2RightBottom[i + 1][horizontalLength - 1] >= 0) {
+                    leftTop2RightBottom[i][horizontalLength - 1] += leftTop2RightBottom[i + 1][horizontalLength - 1];
+                } else {
+                    leftTop2RightBottom[i][horizontalLength - 1] = -1;
+                }
+            }
+        }
+
+        for (int i = horizontalLength - 2; i >= 0; i--) {
+            if (leftTop2RightBottom[verticalLength - 1][i] >= 0) {
+                if (leftTop2RightBottom[verticalLength - 1][i + 1] >= 0) {
+                    leftTop2RightBottom[verticalLength - 1][i] += leftTop2RightBottom[verticalLength - 1][i + 1];
+                } else {
+                    leftTop2RightBottom[verticalLength - 1][i] = -1;
+                }
+            }
+        }
+
+        for (int i = verticalLength - 2; i >= 0; i--) {
+            for (int j = horizontalLength - 2; j >= 0; j--) {
+                if (leftTop2RightBottom[i][j + 1] == -1 && leftTop2RightBottom[i + 1][j] == -1) {
+                    leftTop2RightBottom[i][j] = -1;
+                } else if (leftTop2RightBottom[i][j] >= 0) {
+                    leftTop2RightBottom[i][j] += Math.max(leftTop2RightBottom[i][j + 1], leftTop2RightBottom[i + 1][j]);
+                }
+            }
+        }
+
+        if (leftTop2RightBottom[0][0] <= 0) {
+            return leftTop2RightBottom[0][0];
+        }
+
+        for () {
+
+        }
     }
 }

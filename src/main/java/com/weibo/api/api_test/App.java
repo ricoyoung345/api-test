@@ -1,6 +1,7 @@
 package com.weibo.api.api_test;
 
 import cn.sina.api.SinaUser;
+import cn.sina.api.Status;
 import cn.sina.api.commons.util.ApacheHttpClient;
 import cn.sina.api.commons.util.ApiUtil;
 import cn.sina.api.commons.util.ArrayUtil;
@@ -8,12 +9,14 @@ import cn.sina.api.commons.util.Base62Parse;
 import cn.sina.api.commons.util.Util;
 import cn.sina.api.data.dao.impl2.strategy.TableChannel;
 import cn.sina.api.data.dao.impl2.strategy.TableContainer;
+import cn.sina.api.data.dao.util.JdbcTemplate;
 import cn.sina.api.data.model.BaseStatus;
 import cn.sina.api.data.model.CmtTreeBean;
 import cn.sina.api.data.model.Comment;
 import cn.sina.api.data.model.CommentHotFlowMeta;
 import cn.sina.api.data.model.CommentPBUtil;
 import cn.sina.api.data.model.StatusHelper;
+import cn.sina.api.data.model.StatusPBUtil;
 import cn.sina.api.data.service.SinaUserService;
 import cn.sina.api.data.util.StatusHotCommentUtil;
 import cn.sina.api.user.model.UserAttr;
@@ -43,18 +46,9 @@ import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.RowMapper;
 import reactor.function.support.UriUtils;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -83,7 +77,7 @@ import java.util.Set;
 public class App 
 {
 	public static void main(String[] args) {
-		System.out.println(Base62Parse.encode(4266525668142902L));;
+		beanReader();
 		System.out.println("wait");
 	}
 
@@ -1209,7 +1203,7 @@ public class App
 
 	private static void beanReader() {
 		List<String> xmlList = Lists.newArrayList();
-		xmlList.add("file:/Users/erming/platform/idea/weibo-api-core/src/main/resources/spring/configloader.xml");
+		xmlList.add("file:/Users/erming/platform/weibo-api-core/src/main/resources/spring/configloader.xml");
 		// xmlList.add("file:/Users/erming/platform/idea/api-engine/src/spring/comment-hot-flow.xml");
 		// xmlList.add("file:/Users/erming/platform/idea/api-comment/src/spring/service/status-repost.xml");
 		// xmlList.add("file:/Users/erming/platform/idea/web_v4/src/spring/graph_client.xml");
@@ -1219,90 +1213,12 @@ public class App
 		xmlList.add("classpath:mysql.xml");
 		ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext(ArrayUtil.toStringArr(xmlList));
 		context.start();
-		//UserVerifiedService userVerifiedService = (UserVerifiedService) context.getBean("userVerifiedService");
-//		FriendService friendService = (FriendService) context.getBean("friendService");
 		SinaUserService sinaUserService = (SinaUserService) context.getBean("sinaUserService");
-//		VClubService vClubService = (VClubService) context.getBean("vClubService");
-//		UserActiveTagService userActiveTagService = (UserActiveTagService) context.getBean("userActiveTagService");
-		//WbobjectRpcService wbObjectRpcService = (WbobjectRpcService) context.getBean("wbObjectRpcService");
-//		ABTestClient abTestClient = (ABTestClient) context.getBean("abTestClient");
-//		StatusCountService statusCountService = (StatusCountService) context.getBean("statusCountService");
-//		System.out.println(wbObjectRpcService.getObjectById(String.valueOf(4238287297655623L)));
-		/*CommentHotFlowRedisService commentHotFlowRedisService = (CommentHotFlowRedisService) context.getBean("commentHotFlowRedisService");
-		List<CommentHotFlowMeta> commentHotFlowMetaList = commentHotFlowRedisService.getAll(4263122598926741L, 300, CommentHotFlowRedisType.defaultType);
-		System.out.println(CommentHotFlowRedisType.defaultType);
-		for (CommentHotFlowMeta commentHotFlowMeta : commentHotFlowMetaList) {
-			System.out.println("cid: " + commentHotFlowMeta.getCid() + ", score: " + StatusHotCommentUtil.getRealScoreWithoutCid(commentHotFlowMeta.getScore()));
-		}*/
-
-		/*RepostDualDaoImpl repostDao = (RepostDualDaoImpl) context.getBean("repostDao");
-		long[] ids = repostDao.getRepostTimeLineIds(4249801081494707L, 0L, 0L, 200, 1);
-		for (int i = 0; i < ids.length; i++) {
-			System.out.println(ids[i]);
-		}
-		String str = "jdbc:mysql://m4921i.mars.grid.sina.com.cn:4921/?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true";*/
-
-		//System.out.println(wbObjectRpcService.getObjectUuidByObjectId("1042018:b04cc6c8a72c66c827ae77d7112f0dee", FeedAsynUpdateConstant.OBJECT_INFO_TIMEOUT));
-		// System.out.println(friendService.isFriend(6045832505L, 5995175834L));
-		// System.out.println(friendService.isFriend(6120827117L, 5995175834L));
-		//System.out.println(abTestClient.getStringSwitch(1L, "comment_funny_pictures_default_search_keyword"));
-		/*SinaUser sinaUser = sinaUserService.getBareSinaUser(5995175834L);
-		System.out.println(sinaUser.vclub_member == Constants.VCLUB_MEMBER_TYPE);
-
-		Map<Long, Boolean> subscribersMap = vClubService.checkSubscribers(new long[] {1761568773L}, 5350509769L);
-		System.out.println(MapUtils.isNotEmpty(subscribersMap) && subscribersMap.get(1761568773L));
-
-
-		UserActiveTag userActiveTag = userActiveTagService.getUserActiveTag(String.valueOf(5113652006L));
-		userActiveTag = userActiveTagService.getUserActiveTag(String.valueOf(2717539745L));
-		UserFrequentType userFrequentType = UserFrequentType.getUserFrequentType(userActiveTag);
-		System.out.println(String.valueOf(userFrequentType.toString()));
-
-		System.out.println(wbObjectRpcService.getObjectUuidByObjectId("1034:3ce417e3005977a8b5ed347d96e1c26d", 200L));
-		System.out.println(wbObjectRpcService.get("1034:3ce417e3005977a8b5ed347d96e1c26d"));
-
-		System.out.println(abTestClient.getBooleanSwitch(5626498571L, "comment_extend_recommend_visitor_enable", false));*/
-
-		/*List<Long> uidList = Lists.newArrayList(2171757642L);
-		List<VerifiedTypeExt> userVerifiedTypeList = userVerifiedService.getVerifiedTypeExt(ArrayUtil.toLongArr(uidList));
-		for (int i = 0; i < uidList.size(); i++) {
-			VerifiedTypeExt userVerifiedTypeExt = userVerifiedTypeList.get(i);
-			if (userVerifiedTypeExt != null) {
-				System.out.println(uidList.get(i) + ":" + userVerifiedTypeExt.getUserRead());
-			} else {
-				System.out.println(uidList.get(i) + ":none");
-			}
-		}*/
 
 		Date date = new Date(1533052800000L);
 		TableContainer tableContainer = (TableContainer) context.getBean("tableContainer");
 
-		/*getBymeList(tableContainer);
-		updateBymeList(tableContainer);*/
-
-		// getStatusShowList(tableContainer, sinaUserService);
-		getCommentTreeList(tableContainer, sinaUserService, true, false, 4268929662208127L, 20, date);
-		/*List<Long> ids = Lists.newArrayList(4268139385138083L,4268165930287938L,4268281898486792L,4268139917799138L,4268282829913186L);
-		SimpleDateFormat dateFormater = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-		for (long id : ids) {
-			//System.out.println("status_id:" + statusMeta.status_id + "\tcmt_id:" + statusMeta.cmt_id + "\tmflag:" + statusMeta.mflag + "\tuid:" + statusMeta.uid + "\tvflag:" + statusMeta.vflag);
-			Comment comment = getComment(tableContainer, id);
-			StringBuilder sb = new StringBuilder();
-			sb.append(comment.id).append("\t");
-			sb.append(comment.postSource.id).append("\t");
-			sb.append(comment.text).append("\t");
-			SinaUser sinaUser = sinaUserService.getSinaUser(comment.getAuthorId());
-			sb.append(sinaUser != null ? sinaUser.screen_name : "frozen_user").append("\t");
-			sb.append(sinaUser != null ? sinaUser.id : "0").append("\t");
-			sb.append(comment.ip).append("\t");
-			sb.append(GetAddressByIp(comment.ip)).append("\t");
-			sb.append(dateFormater.format(comment.created_at));
-			System.out.println(sb.toString());
-		}*/
-		/*updateStatusList(tableContainer);
-
-		Comment comment = getComment(tableContainer, 4265759767614279L);
-		updateContentState(tableContainer, comment);*/
+		commentListSerizationBenchTest(tableContainer, sinaUserService, true, true, 4274147129522788L, 200000, date);
 
 		System.out.println("\ndone!");
 	}
@@ -1402,7 +1318,7 @@ public class App
 			SimpleDateFormat dateFormater = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss");
 			for (StatusMeta statusMeta : statusMetas) {
 				//System.out.println("status_id:" + statusMeta.status_id + "\tcmt_id:" + statusMeta.cmt_id + "\tmflag:" + statusMeta.mflag + "\tuid:" + statusMeta.uid + "\tvflag:" + statusMeta.vflag);
-				Comment comment = getComment(tableContainer, statusMeta.cmt_id);
+				Comment comment = getComment(tableContainer, sinaUserService, statusMeta.cmt_id);
 				StringBuilder sb = new StringBuilder();
 				sb.append(comment.text).append("\t");
 				SinaUser sinaUser = sinaUserService.getSinaUser(comment.getAuthorId());
@@ -1424,6 +1340,7 @@ public class App
 				isAsc ? "GET_CHILD_COMMENT_ASC" : "GET_CHILD_COMMENT_DESC";
 		TableChannel tableChannel = tableContainer.getTableChannel(tableName, sqlName, id, createdDate);
 		String sql = tableChannel.getSql();
+		System.out.println(sql);
 
 		List<CmtTreeBean> list = Lists.newArrayList();
 		if (isMid) {
@@ -1454,19 +1371,85 @@ public class App
 			});
 		}
 
-		SimpleDateFormat dateFormater = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss");
-		for (CmtTreeBean cmtTreeBean : list) {
-			//System.out.println("status_id:" + statusMeta.status_id + "\tcmt_id:" + statusMeta.cmt_id + "\tmflag:" + statusMeta.mflag + "\tuid:" + statusMeta.uid + "\tvflag:" + statusMeta.vflag);
-			Comment comment = getComment(tableContainer, cmtTreeBean.getChild_id());
-			StringBuilder sb = new StringBuilder();
-			sb.append(dateFormater.format(comment.created_at)).append("\t");
-			sb.append(getState(comment)).append("\t");
-			sb.append(comment.text).append("\t");
-			SinaUser sinaUser = sinaUserService.getSinaUser(comment.getAuthorId());
-			sb.append(sinaUser != null ? sinaUser.screen_name : "frozen_user").append("\t");
-			sb.append(comment.ip);
-			System.out.println(sb.toString());
+		List<Comment> commentList = Lists.newArrayList();
+		for (CmtTreeBean cmtTreeBean : list)
+			commentList.add(getComment(tableContainer, sinaUserService, cmtTreeBean.getChild_id()));
+
+		List<byte[]> commentPbList = Lists.newArrayList();
+		for (Comment comment : commentList)
+			commentPbList.add(CommentPBUtil.toPB(comment, false, false));
+
+		long start = System.currentTimeMillis();
+		for (byte[] commentPb : commentPbList) {
+			Comment comment = CommentPBUtil.parseFromPB(commentPb);
 		}
+		System.out.println("time consume: " + (System.currentTimeMillis() - start) + ", size:" + commentPbList.size());
+
+//		SimpleDateFormat dateFormater = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss");
+//		for (CmtTreeBean cmtTreeBean : list) {
+//			//System.out.println("status_id:" + statusMeta.status_id + "\tcmt_id:" + statusMeta.cmt_id + "\tmflag:" + statusMeta.mflag + "\tuid:" + statusMeta.uid + "\tvflag:" + statusMeta.vflag);
+//			Comment comment = getComment(tableContainer, sinaUserService, cmtTreeBean.getChild_id());
+//			StringBuilder sb = new StringBuilder();
+//			sb.append(dateFormater.format(comment.created_at)).append("\t");
+//			sb.append(getState(comment)).append("\t");
+//			sb.append(comment.text).append("\t");
+//			sb.append(comment.author != null ? comment.author.screen_name : "frozen_user").append("\t");
+//			sb.append(comment.ip);
+//			System.out.println(sb.toString());
+//		}
+	}
+
+	private static void commentListSerizationBenchTest(TableContainer tableContainer, SinaUserService sinaUserService, boolean isMid, boolean isAsc, long id, int count, Date createdDate) {
+		List<CmtTreeBean> commentBeanList = getCommentBeanList(tableContainer, isMid, id, count, createdDate);
+		System.out.println(commentBeanList.size());
+	}
+
+	private static List<CmtTreeBean> getCommentBeanList(TableContainer tableContainer, boolean isMid, long id, int count, Date createdDate) {
+		String tableName = isMid ? "cmt_tree_mid_rootid" : "cmt_tree_rootid_childid";
+		String sqlName = isMid ? "GET_TEST_ROOT_COMMENT" : "GET_TEST_CHILD_COMMENT";
+		TableChannel tableChannel = tableContainer.getTableChannel(tableName, sqlName, id, createdDate);
+		String sql = tableChannel.getSql();
+
+		long start = System.currentTimeMillis();
+
+		List<CmtTreeBean> list = Lists.newArrayList();
+		int MAX_FETCH_SIZE = 2000;
+		int offset = 0;
+
+		while (offset < count) {
+			if (isMid) {
+				tableChannel.getJdbcTemplate().query(sql, new Object[] { MAX_FETCH_SIZE, offset }, new RowMapper() {
+					@Override
+					public Object mapRow(ResultSet rs, int i) throws SQLException {
+						CmtTreeBean item = new CmtTreeBean();
+						item.setRoot_id(rs.getLong("mid"));
+						item.setChild_id(rs.getLong("cmt_root_id"));
+						item.setVflag(rs.getInt("vflag"));
+						item.setMflag(rs.getInt("mflag"));
+						list.add(item);
+						return null;
+					}
+				});
+			} else {
+				tableChannel.getJdbcTemplate().query(sql, new Object[] { MAX_FETCH_SIZE, offset }, new RowMapper() {
+					@Override
+					public Object mapRow(ResultSet rs, int i) throws SQLException {
+						CmtTreeBean item = new CmtTreeBean();
+						item.setRoot_id(rs.getLong("cmt_root_id"));
+						item.setChild_id(rs.getLong("cmt_child_id"));
+						item.setVflag(rs.getInt("vflag"));
+						item.setMflag(rs.getInt("mflag"));
+						list.add(item);
+						return null;
+					}
+				});
+			}
+			offset += MAX_FETCH_SIZE;
+		}
+
+		System.out.println("get id timeCousume: " + (System.currentTimeMillis() - start));
+
+		return list;
 	}
 
 	private static String getState(Comment comment) {
@@ -1484,7 +1467,7 @@ public class App
 		}
 	}
 
-	static Comment getComment(TableContainer tableContainer, long id) {
+	static Comment getComment(TableContainer tableContainer, SinaUserService sinaUserService, long id) {
 		TableChannel channel = tableContainer.getTableChannel("comment", "GET_CONTENT", id, id);
 		String sql = channel.getSql();
 
@@ -1494,7 +1477,12 @@ public class App
 					Comment comment = CommentPBUtil.parseFromPB(rs.getBytes("content"), true);
 					if(comment != null){
 						comment.id = rs.getLong("id");
-						return comment;
+						SinaUser sinaUser = sinaUserService.getSinaUser(comment.getAuthorId());
+						comment.author = sinaUser;
+						Status status = getStatus(tableContainer, sinaUserService, comment.src_status_id_db, true);
+						comment.srcStatus = status;
+						if (comment.author != null && comment.srcStatus != null)
+							return comment;
 					}
 				}
 				return null;
@@ -1502,6 +1490,30 @@ public class App
 		});
 
 		return comment;
+	}
+
+	static Status getStatus(TableContainer tableContainer, SinaUserService sinaUserService, final long id, final boolean loadDeleted) {
+		TableChannel channel = tableContainer.getTableChannel("status", "GET_CONTENT", id, id);
+		JdbcTemplate template = channel.getJdbcTemplate();
+		String sql = channel.getSql();
+
+		Status status = (Status) template.query(sql, new Long[] {id}, new ResultSetExtractor() {
+			@Override
+			public Object extractData(ResultSet rs) throws SQLException, DataAccessException {
+				if (rs.next()) {
+					Status status = StatusPBUtil.parseFromPB(rs.getBytes("content"), loadDeleted);
+					if (status != null) {
+						status.id = id;
+						SinaUser sinaUser = sinaUserService.getSinaUser(status.getAuthorId());
+						status.author = sinaUser;
+						return status;
+					}
+				}
+				return null;
+			}
+		});
+
+		return status;
 	}
 
 	public static void testSwap () {

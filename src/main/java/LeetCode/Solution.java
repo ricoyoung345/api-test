@@ -2345,51 +2345,6 @@ public class Solution {
      * @return
      */
     public int cherryPickup(int[][] grid) {
-        if (grid == null) {
-            return 0;
-        }
-
-        int verticalLength = grid.length;
-        int horizontalLength = grid[0].length;
-        int[][] leftTop2RightBottom = new int[verticalLength][horizontalLength];
-        for (int i = 0; i < verticalLength; i++) { leftTop2RightBottom[i] = grid[i]; }
-
-        for (int i = verticalLength - 2; i >= 0; i--) {
-            if (leftTop2RightBottom[i][horizontalLength - 1] >= 0) {
-                if (leftTop2RightBottom[i + 1][horizontalLength - 1] >= 0) {
-                    leftTop2RightBottom[i][horizontalLength - 1] += leftTop2RightBottom[i + 1][horizontalLength - 1];
-                } else {
-                    leftTop2RightBottom[i][horizontalLength - 1] = -1;
-                }
-            }
-        }
-
-        for (int i = horizontalLength - 2; i >= 0; i--) {
-            if (leftTop2RightBottom[verticalLength - 1][i] >= 0) {
-                if (leftTop2RightBottom[verticalLength - 1][i + 1] >= 0) {
-                    leftTop2RightBottom[verticalLength - 1][i] += leftTop2RightBottom[verticalLength - 1][i + 1];
-                } else {
-                    leftTop2RightBottom[verticalLength - 1][i] = -1;
-                }
-            }
-        }
-
-        for (int i = verticalLength - 2; i >= 0; i--) {
-            for (int j = horizontalLength - 2; j >= 0; j--) {
-                if (leftTop2RightBottom[i][j + 1] == -1 && leftTop2RightBottom[i + 1][j] == -1) {
-                    leftTop2RightBottom[i][j] = -1;
-                } else if (leftTop2RightBottom[i][j] >= 0) {
-                    leftTop2RightBottom[i][j] += Math.max(leftTop2RightBottom[i][j + 1], leftTop2RightBottom[i + 1][j]);
-                }
-            }
-        }
-
-        if (leftTop2RightBottom[0][0] <= 0) {
-            return leftTop2RightBottom[0][0];
-        }
-
-        for () {
-
-        }
+        return 0;
     }
 }

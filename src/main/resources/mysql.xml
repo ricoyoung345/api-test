@@ -6,6 +6,19 @@
 http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
 http://api.weibo.com/schema/weibo http://api.weibo.com/schema/weibo.xsd ">
     <!-- datasources -->
+    <bean id="statusBaseDataSource"  abstract="true">
+        <property name="driverClass"><value>com.mysql.jdbc.Driver</value></property>
+        <property name="minPoolSize"><value>${feed.db.common.minPoolSize}</value></property>
+        <property name="maxPoolSize"><value>${feed.db.common.maxPoolSize}</value></property>
+        <property name="idleConnectionTestPeriod"><value>25</value></property>
+        <property name="maxIdleTime"><value>28</value></property>
+        <property name="breakAfterAcquireFailure"><value>false</value></property>
+        <property name="acquireRetryAttempts"><value>30</value></property>
+        <property name="acquireRetryDelay"><value>1000</value></property>
+        <property name="user"><value>${status.content.datasource.user}</value></property>
+        <property name="password"><value>${status.content.datasource.password}</value></property>
+    </bean>
+
     <bean id="commentBaseDataSource"  abstract="true">
         <property name="driverClass"><value>com.mysql.jdbc.Driver</value></property>
         <property name="minPoolSize"><value>${feed.db.comment.minPoolSize}</value></property>
@@ -23,11 +36,44 @@ http://api.weibo.com/schema/weibo http://api.weibo.com/schema/weibo.xsd ">
     <bean id="tableContainer" class="cn.sina.api.data.dao.impl2.strategy.TableContainer">
         <property name="tablesItems">
             <map>
+                <entry key="status" value-ref="status"/>
                 <entry key="status_cmt" value-ref="status_cmt"/>
                 <entry key="cmt_timeline" value-ref="cmt_timeline"/>
                 <entry key="comment" value-ref="comment"/>
                 <entry key="cmt_tree_mid_rootid" value-ref="cmt_tree_mid_rootid"/>
                 <entry key="cmt_tree_rootid_childid" value-ref="cmt_tree_rootid_childid"/>
+            </map>
+        </property>
+    </bean>
+
+    <!--  table status_yy_MM_dd -->
+    <bean id="status" class="cn.sina.api.data.dao.impl2.strategy.TableItem">
+        <property name="itemName" value="status"/>
+        <property name="dbNamePrefix"  value="status"/>
+        <property name="dbCount"  value="32"/>
+
+        <property name="tableNamePrefix" value="status" />
+        <property name="tableNamePostFix" value="yymmdd" /> <!-- 默认是索引 -->
+        <property name="tableCount" value="1" />            <!-- 这个参数和tableNamePostFix有关系，如果是日期就不用了。 -->
+        <property name="sqls">
+            <map>
+                <entry key="SAVE_CONTENT" value="insert into $db$.$tb$ (id, content) values(?, ?)"/>
+                <entry key="UPDATE_CONTENT" value="update $db$.$tb$ set content=? where id=?"/>
+                <entry key="DELETE_CONTENT" value="delete from $db$.$tb$ where id=?"/>
+                <entry key="GET_CONTENT" value="select id, content from $db$.$tb$ where id=?"/>
+                <entry key="GET_CONTENTS" value="select id, content from $db$.$tb$ where id in "/>
+                <entry key="GET_LATEST_STATUS_IDS" value="select id from $db$.$tb$ where id &lt; 4500000000000000 order by id desc limit ?"/>
+                <entry key="GET_FURTHEST_STATUS_IDS" value="select id from $db$.$tb$ where id &lt; 4500000000000000 order by id asc limit ?"/>
+            </map>
+        </property>
+        <property name="hierarchy" value="${status.tableitem.hierarchy}"/>
+        <property name="jdbcTemplateCluster">
+            <map>
+                <entry key="2016"><ref bean="status_jdbctemplates_2014"/></entry>
+                <entry key="2017"><ref bean="status_jdbctemplates_2014"/></entry>
+                <entry key="2018"><ref bean="status_jdbctemplates_2014"/></entry>
+                <entry key="2019"><ref bean="status_jdbctemplates_2014"/></entry>
+                <entry key="2020"><ref bean="status_jdbctemplates_2014"/></entry>
             </map>
         </property>
     </bean>
@@ -130,6 +176,7 @@ http://api.weibo.com/schema/weibo http://api.weibo.com/schema/weibo.xsd ">
             <map>
                 <entry key="GET_ROOT_COMMENT_DESC" value="select mid, cmt_root_id, vflag, mflag from $db$.$tb$ where mid=? order by cmt_root_id desc limit ?"/>
                 <entry key="GET_ROOT_COMMENT_ASC" value="select mid, cmt_root_id, vflag, mflag from $db$.$tb$ where mid=? order by cmt_root_id asc limit ?"/>
+                <entry key="GET_TEST_ROOT_COMMENT" value="select mid, cmt_root_id, vflag, mflag from $db$.$tb$ limit ? offset ?"/>
             </map>
         </property>
         <property name="jdbcTemplates">
@@ -158,6 +205,7 @@ http://api.weibo.com/schema/weibo http://api.weibo.com/schema/weibo.xsd ">
             <map>
                 <entry key="GET_CHILD_COMMENT_DESC" value="select cmt_root_id, cmt_child_id, vflag, mflag from $db$.$tb$ where cmt_root_id=? order by cmt_child_id desc limit ?"/>
                 <entry key="GET_CHILD_COMMENT_ASC" value="select cmt_root_id, cmt_child_id, vflag, mflag from $db$.$tb$ where cmt_root_id=? order by cmt_child_id asc limit ?"/>
+                <entry key="GET_TEST_CHILD_COMMENT" value="select cmt_root_id, cmt_child_id, vflag, mflag from $db$.$tb$ limit ? offset ?"/>
             </map>
         </property>
         <property name="jdbcTemplates">
@@ -174,6 +222,151 @@ http://api.weibo.com/schema/weibo http://api.weibo.com/schema/weibo.xsd ">
         </property>
     </bean>
 
+    <!-- 内容库2016年以及以后的表  -->
+    <bean id="status_jdbctemplates_2014" class="java.util.ArrayList">
+        <constructor-arg>
+            <list>
+                <ref bean="status_jdbctemplate_14_0"/>
+                <ref bean="status_jdbctemplate_14_1"/>
+                <ref bean="status_jdbctemplate_14_2"/>
+                <ref bean="status_jdbctemplate_14_3"/>
+                <ref bean="status_jdbctemplate_14_4"/>
+                <ref bean="status_jdbctemplate_14_5"/>
+                <ref bean="status_jdbctemplate_14_6"/>
+                <ref bean="status_jdbctemplate_14_7"/>
+            </list>
+        </constructor-arg>
+    </bean>
+
+    <bean id="status_jdbctemplate_14_0" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_status_14_0_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_status_14_0_s" />
+            </list>
+        </property>
+    </bean>
+    <bean id="status_jdbctemplate_14_1" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_status_14_1_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_status_14_1_s" />
+            </list>
+        </property>
+    </bean>
+    <bean id="status_jdbctemplate_14_2" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_status_14_2_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_status_14_2_s" />
+            </list>
+        </property>
+    </bean>
+    <bean id="status_jdbctemplate_14_3" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_status_14_3_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_status_14_3_s" />
+            </list>
+        </property>
+    </bean>
+    <bean id="status_jdbctemplate_14_4" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_status_14_4_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_status_14_4_s" />
+            </list>
+        </property>
+    </bean>
+    <bean id="status_jdbctemplate_14_5" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_status_14_5_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_status_14_5_s" />
+            </list>
+        </property>
+    </bean>
+    <bean id="status_jdbctemplate_14_6" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_status_14_6_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_status_14_6_s" />
+            </list>
+        </property>
+    </bean>
+    <bean id="status_jdbctemplate_14_7" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_status_14_7_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_status_14_7_s" />
+            </list>
+        </property>
+    </bean>
+
+    <weibo:mysql id="datasources_status_14_0_m"  parent="statusBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${status.content.datasource.master_14_0.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_14_0_s"  parent="statusBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${status.content.datasource.slave_14_0.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_14_1_m"  parent="statusBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${status.content.datasource.master_14_1.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_14_1_s"  parent="statusBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${status.content.datasource.slave_14_1.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_14_2_m"  parent="statusBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${status.content.datasource.master_14_2.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_14_2_s"  parent="statusBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${status.content.datasource.slave_14_2.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_14_3_m"  parent="statusBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${status.content.datasource.master_14_3.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_14_3_s"  parent="statusBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${status.content.datasource.slave_14_3.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_14_4_m"  parent="statusBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${status.content.datasource.master_14_4.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_14_4_s"  parent="statusBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${status.content.datasource.slave_14_4.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_14_5_m"  parent="statusBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${status.content.datasource.master_14_5.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_14_5_s"  parent="statusBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${status.content.datasource.slave_14_5.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_14_6_m"  parent="statusBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${status.content.datasource.master_14_6.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_14_6_s"  parent="statusBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${status.content.datasource.slave_14_6.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_14_7_m"  parent="statusBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${status.content.datasource.master_14_7.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_14_7_s"  parent="statusBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${status.content.datasource.slave_14_7.jdbcUrl}</value></property>
+    </weibo:mysql>
 
     <bean id="cmt_timeline_jdbctemplate_0" class="cn.sina.api.data.dao.util.JdbcTemplate">
         <property name="dataSource">

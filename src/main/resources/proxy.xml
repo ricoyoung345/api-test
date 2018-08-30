@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE beans PUBLIC "-//SPRING//DTD BEAN 2.0//EN" "http://www.springframework.org/dtd/spring-beans-2.0.dtd">
+<beans>
+    <bean id="content2StorageProxy" class="cn.sina.api.data.storage.StorageProxy">
+        <property name="preferedStorage" ref="content2MemCache"></property>
+        <property name="backupStorage" ref="contentDBStorage"></property>
+    </bean>
+
+    <bean id="contentDBStorage" class="com.weibo.api.api_test.CommentDBStorage"></bean>
+
+    <bean id="content2MemCache" class="com.weibo.api.commons.memcache.CacheAlternative" init-method="init">
+        <property name="preferredCache" ref="content2MemCache_new"/>
+        <property name="backupCache" ref="content2MemCache_old"/>
+        <property name="traceEnable" value="false"/>
+        <property name="useBackupSwitcherName" value="feature.cache.alternative.backup.comment.content2"/>
+        <property name="useBackupSwitcherDefault" value="false"/>
+    </bean>
+</beans>

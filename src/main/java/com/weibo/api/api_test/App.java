@@ -2,11 +2,14 @@ package com.weibo.api.api_test;
 
 import cn.sina.api.SinaUser;
 import cn.sina.api.Status;
+import cn.sina.api.commons.redis.balancer.JedisMSServer;
 import cn.sina.api.commons.util.ApacheHttpClient;
+import cn.sina.api.commons.util.ApiLogger;
 import cn.sina.api.commons.util.ApiUtil;
 import cn.sina.api.commons.util.ArrayUtil;
 import cn.sina.api.commons.util.Base62Parse;
 import cn.sina.api.commons.util.Util;
+import cn.sina.api.commons.util.UuidHelper;
 import cn.sina.api.data.dao.impl2.strategy.TableChannel;
 import cn.sina.api.data.dao.impl2.strategy.TableContainer;
 import cn.sina.api.data.dao.util.JdbcTemplate;
@@ -15,17 +18,24 @@ import cn.sina.api.data.model.CmtTreeBean;
 import cn.sina.api.data.model.Comment;
 import cn.sina.api.data.model.CommentHotFlowMeta;
 import cn.sina.api.data.model.CommentPBUtil;
+import cn.sina.api.data.model.IdFlag;
+import cn.sina.api.data.model.StatusFlag;
 import cn.sina.api.data.model.StatusHelper;
 import cn.sina.api.data.model.StatusPBUtil;
 import cn.sina.api.data.service.SinaUserService;
+import cn.sina.api.data.storage.StorageProxy;
 import cn.sina.api.data.util.StatusHotCommentUtil;
-import cn.sina.api.user.model.UserAttr;
-import cn.sina.api.user.service.UserService;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Queues;
 import com.google.common.collect.Sets;
 import com.weibo.api.commons.util.HashUtil;
+import com.weibo.api.data.status.service.StatusCountService;
+import com.weibo.api.engine.comment.service.CommentHotFlowRedisService;
+import com.weibo.api.engine.comment.util.ApprovalCommentUtil;
+import com.weibo.api.engine.comment.util.CommentsUtil;
+import com.weibo.api.engine.core.model.CommentHotFlowContext;
+import com.weibo.api.engine.util.CommentAdvertiseUtil;
 import net.sf.json.JSONObject;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
@@ -46,9 +56,17 @@ import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.RowMapper;
 import reactor.function.support.UriUtils;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.RandomAccessFile;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -69,6 +87,9 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Hello world!
@@ -77,1150 +98,26 @@ import java.util.Set;
 public class App 
 {
 	public static void main(String[] args) {
-		beanReader();
-		System.out.println("wait");
+		// ExportCommentList exportCommentList = new ExportCommentList();
+		// exportCommentList.commentListExport();
+		testStatus();
+		System.out.println("done");
 	}
 
-	private static int getBitOperate(int fromBit, int toBit) {
-		int result = 0;
-		int init = 1;
-		for (int i = fromBit; i <= toBit; i++) {
-			result |= (init << i - 1);
-		}
-
-		return result;
-	}
-
-	static final String FILE_READ_PATH = "/Users/erming/Desktop/exposure_object.20180624_22_24.log";
-
-	public static void getXlsxx() {
+	private static void testStatus() {
 		List<String> xmlList = Lists.newArrayList();
-		xmlList.add("classpath:rpc.xml");
-		ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext(ArrayUtil.toStringArr(xmlList));
-		context.start();
-		UserService userService = (UserService) context.getBean("userService");
+		xmlList.add("file:/Users/erming/platform/idea/weibo-api-core/src/main/resources/spring/configloader.xml");
 
-		BufferedReader reader = null;
-		try {
-			Map<Long, Map<String, List<String>>> midInteraction = Maps.newHashMap();
-
-			List<File> fileList = Lists.newArrayList();
-			fileList = getFileList("/Users/erming/Desktop/interaction/", fileList);
-			for (File file : fileList) {
-				String filePath = file.getAbsolutePath();
-				if (filePath == null || !filePath.endsWith(".txt")) { continue; }
-				String interactionName = file.getName().split("\\.")[0];
-
-				BufferedReader innerReader = new BufferedReader(new FileReader(new File(filePath)));
-				String innerLine = null;
-				while ((innerLine = innerReader.readLine()) != null) {
-					String[] interactionArray = innerLine.split("\t");
-					long mid = Long.valueOf(interactionArray[2]);
-
-					Map<String, List<String>> interactionMap = midInteraction.get(mid);
-					if (interactionMap == null) { interactionMap = Maps.newHashMap(); midInteraction.put(mid, interactionMap); }
-
-					List<String> interactionList = interactionMap.get(interactionName);
-					if (interactionList == null) { interactionList = Lists.newArrayList(); interactionMap.put(interactionName, interactionList); }
-
-					interactionList.add(innerLine);
-				}
-			}
-			System.out.println();
-
-			System.out.println("start excel");
-			HSSFWorkbook workbook = new HSSFWorkbook();
-			// Sheet样式
-			HSSFCellStyle sheetStyle = workbook.createCellStyle();
-			sheetStyle.setFillBackgroundColor(HSSFColor.GREY_25_PERCENT.index);
-			sheetStyle.setFillForegroundColor(HSSFColor.GREY_25_PERCENT.index);
-
-			HSSFFont headfont = workbook.createFont();
-			headfont.setFontName("黑体");
-			headfont.setFontHeightInPoints((short) 22);// 字体大小
-			headfont.setBoldweight(HSSFFont.BOLDWEIGHT_BOLD);// 加粗
-			// 另一个样式
-			HSSFCellStyle headstyle = workbook.createCellStyle();
-			headstyle.setFont(headfont);
-			headstyle.setAlignment(HSSFCellStyle.ALIGN_CENTER);// 左右居中
-			headstyle.setVerticalAlignment(HSSFCellStyle.VERTICAL_CENTER);// 上下居中
-			headstyle.setLocked(true);
-
-			HSSFFont font = workbook.createFont();
-			font.setFontName("宋体");
-			font.setFontHeightInPoints((short) 12);
-
-			// 普通单元格样式
-			HSSFCellStyle style = workbook.createCellStyle();
-			style.setFont(font);
-			style.setAlignment(HSSFCellStyle.ALIGN_LEFT);// 左右居中
-			style.setVerticalAlignment(HSSFCellStyle.VERTICAL_TOP);// 上下居中
-			style.setWrapText(true);
-			style.setLeftBorderColor(HSSFColor.BLACK.index);
-			style.setBorderLeft((short) 1);
-			style.setRightBorderColor(HSSFColor.BLACK.index);
-			style.setBorderRight((short) 1);
-			style.setBorderBottom(HSSFCellStyle.BORDER_THIN); // 设置单元格的边框为粗体
-			style.setBottomBorderColor(HSSFColor.BLACK.index); // 设置单元格的边框颜色．
-			style.setFillForegroundColor(HSSFColor.WHITE.index);// 设置单元格的背景颜色
-
-			// 另一个样式
-			HSSFCellStyle centerstyle = workbook.createCellStyle();
-			centerstyle.setFont(font);
-			centerstyle.setAlignment(HSSFCellStyle.ALIGN_CENTER);// 左右居中
-			centerstyle.setVerticalAlignment(HSSFCellStyle.VERTICAL_CENTER);// 上下居中
-			centerstyle.setWrapText(true);
-			centerstyle.setLeftBorderColor(HSSFColor.BLACK.index);
-			centerstyle.setBorderLeft((short) 1);
-			centerstyle.setRightBorderColor(HSSFColor.BLACK.index);
-			centerstyle.setBorderRight((short) 1);
-			centerstyle.setBorderBottom(HSSFCellStyle.BORDER_THIN); // 设置单元格的边框为粗体
-			centerstyle.setBottomBorderColor(HSSFColor.BLACK.index); // 设置单元格的边框颜色．
-			centerstyle.setFillForegroundColor(HSSFColor.WHITE.index);// 设置单元格的背景颜色．
-
-			int lineNum = 1;
-			String line;
-			reader = new BufferedReader(new FileReader(new File("/Users/erming/Desktop/mids.txt")));
-			while ((line = reader.readLine()) != null) {
-				System.out.println("[Excel export]" + lineNum++);
-				int rowNum = 0;
-				String[] linkArray = line.split("\t");
-				String link = linkArray[0];
-				String hexMid = link.substring(link.lastIndexOf("/"));
-				long mid = Base62Parse.decode(hexMid);
-
-				Map<String, List<String>> interactionMap = midInteraction.get(mid);
-				if (MapUtils.isEmpty(interactionMap)) { continue; }
-
-				HSSFSheet sheet = workbook.createSheet(String.valueOf(mid));
-				for (int i = 0; i <= 4; i++) { sheet.setDefaultColumnStyle((short) i, sheetStyle); }
-				sheet.setColumnWidth(0, 6000);
-				sheet.setColumnWidth(1, 4000);
-				sheet.setColumnWidth(2, 5000);
-				sheet.setColumnWidth(3, 4000);
-				sheet.setColumnWidth(4, 4000);
-
-				HSSFRow row = sheet.createRow(rowNum);
-				row.setHeight((short) 800);
-				HSSFCell cell = row.createCell(0);
-				cell.setCellType(HSSFCell.CELL_TYPE_FORMULA);//CELL_TYPE_FORMULA
-				cell.setCellFormula("HYPERLINK(\"" + link + "\",\""+ link +"\")");
-				cell.setCellStyle(headstyle);
-				sheet.addMergedRegion(new CellRangeAddress(rowNum,rowNum,0,3));
-
-				row = sheet.createRow(++rowNum);
-				cell = row.createCell(0);
-				cell.setCellValue("转发数");
-				cell.setCellStyle(style);
-				cell = row.createCell(1);
-				cell.setCellValue("评论数");
-				cell.setCellStyle(style);
-				cell = row.createCell(2);
-				cell.setCellValue("赞数");
-				cell.setCellStyle(style);
-				cell = row.createCell(3);
-				cell.setCellValue("总计数");
-				cell.setCellStyle(style);
-
-				row = sheet.createRow(++rowNum);
-				cell = row.createCell(0);
-				cell.setCellValue(linkArray[1]);
-				cell.setCellStyle(style);
-				cell = row.createCell(1);
-				cell.setCellValue(linkArray[2]);
-				cell.setCellStyle(style);
-				cell = row.createCell(2);
-				cell.setCellValue(linkArray[3]);
-				cell.setCellStyle(style);
-				cell = row.createCell(3);
-				cell.setCellValue(linkArray[4]);
-				cell.setCellStyle(style);
-
-				row = sheet.createRow(++rowNum);
-				row = sheet.createRow(++rowNum);
-				cell = row.createCell(0);
-				cell.setCellValue("转发");
-				cell.setCellStyle(centerstyle);
-				sheet.addMergedRegion(new CellRangeAddress(rowNum,rowNum,0,3));
-
-				row = sheet.createRow(++rowNum);
-				cell = row.createCell(0);
-				cell.setCellValue("转发时间");
-				cell.setCellStyle(style);
-				cell = row.createCell(1);
-				cell.setCellValue("转发用户");
-				cell.setCellStyle(style);
-				cell = row.createCell(2);
-				cell.setCellValue("转发用户质量等级");
-				cell.setCellStyle(style);
-				cell = row.createCell(3);
-				cell.setCellValue("IP");
-				cell.setCellStyle(style);
-//				cell = row.createCell(4);
-//				cell.setCellValue("IP所属区域");
-//				cell.setCellStyle(style);
-
-				if (MapUtils.isNotEmpty(interactionMap) && CollectionUtils.isNotEmpty(interactionMap.get("转发"))) {
-					for (InnerLine innerLine : InnerLine.getSortList(interactionMap.get("转发"))) {
-						row = sheet.createRow(++rowNum);
-						setRowText(userService, row, style, innerLine.line);
-					}
-				}
-
-				row = sheet.createRow(++rowNum);
-				row = sheet.createRow(++rowNum);
-				cell = row.createCell(0);
-				cell.setCellValue("评论");
-				cell.setCellStyle(centerstyle);
-				sheet.addMergedRegion(new CellRangeAddress(rowNum,rowNum,0,3));
-
-				row = sheet.createRow(++rowNum);
-				cell = row.createCell(0);
-				cell.setCellValue("评论时间");
-				cell.setCellStyle(style);
-				cell = row.createCell(1);
-				cell.setCellValue("评论用户");
-				cell.setCellStyle(style);
-				cell = row.createCell(2);
-				cell.setCellValue("评论用户质量等级");
-				cell.setCellStyle(style);
-				cell = row.createCell(3);
-				cell.setCellValue("IP");
-				cell.setCellStyle(style);
-//				cell = row.createCell(4);
-//				cell.setCellValue("IP所属区域");
-//				cell.setCellStyle(style);
-
-				if (MapUtils.isNotEmpty(interactionMap) && CollectionUtils.isNotEmpty(interactionMap.get("评论"))) {
-					for (InnerLine innerLine : InnerLine.getSortList(interactionMap.get("评论"))) {
-						row = sheet.createRow(++rowNum);
-						setRowText(userService, row, style, innerLine.line);
-					}
-				}
-
-				row = sheet.createRow(++rowNum);
-				row = sheet.createRow(++rowNum);
-				cell = row.createCell(0);
-				cell.setCellValue("点赞");
-				cell.setCellStyle(centerstyle);
-				sheet.addMergedRegion(new CellRangeAddress(rowNum,rowNum,0,3));
-
-				row = sheet.createRow(++rowNum);
-				cell = row.createCell(0);
-				cell.setCellValue("点赞时间");
-				cell.setCellStyle(style);
-				cell = row.createCell(1);
-				cell.setCellValue("点赞用户");
-				cell.setCellStyle(style);
-				cell = row.createCell(2);
-				cell.setCellValue("点赞用户质量等级");
-				cell.setCellStyle(style);
-				cell = row.createCell(3);
-				cell.setCellValue("IP");
-				cell.setCellStyle(style);
-//				cell = row.createCell(4);
-//				cell.setCellValue("IP所属区域");
-//				cell.setCellStyle(style);
-
-				if (MapUtils.isNotEmpty(interactionMap) && CollectionUtils.isNotEmpty(interactionMap.get("赞"))) {
-					for (InnerLine innerLine : InnerLine.getSortList(interactionMap.get("赞"))) {
-						row = sheet.createRow(++rowNum);
-						setRowText(userService, row, style, innerLine.line);
-					}
-				}
-			}
-
-			String filename = "/Users/erming/Desktop/interaction.xls";//设置下载时客户端Excel的名称
-			workbook.write(new FileOutputStream(new File(filename)));
-		} catch (Exception ex) {
-
-		}
-	}
-
-	public static void getXlsx() {
-		List<String> xmlList = Lists.newArrayList();
-		xmlList.add("classpath:rpc.xml");
-		ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext(ArrayUtil.toStringArr(xmlList));
-		context.start();
-		UserService userService = (UserService) context.getBean("userService");
-
-		BufferedReader reader = null;
-		try {
-			Map<Long, Map<String, List<String>>> midInteraction = Maps.newHashMap();
-
-			List<File> fileList = Lists.newArrayList();
-			fileList = getFileList("/Users/erming/Desktop/interaction/", fileList);
-			/*for (File file : fileList) {
-				String filePath = file.getAbsolutePath();
-				if (filePath == null || !filePath.endsWith(".txt")) { continue; }
-				String interactionName = file.getName().split("\\.")[0];
-
-				BufferedReader innerReader = new BufferedReader(new FileReader(new File(filePath)));
-				String innerLine = null;
-				while ((innerLine = innerReader.readLine()) != null) {
-					String[] interactionArray = innerLine.split("\t");
-					long mid = Long.valueOf(interactionArray[2]);
-
-					Map<String, List<String>> interactionMap = midInteraction.get(mid);
-					if (interactionMap == null) { interactionMap = Maps.newHashMap(); midInteraction.put(mid, interactionMap); }
-
-					List<String> interactionList = interactionMap.get(interactionName);
-					if (interactionList == null) { interactionList = Lists.newArrayList(); interactionMap.put(interactionName, interactionList); }
-
-					interactionList.add(innerLine);
-				}
-			}*/
-
-			Map<String, Integer> uidRepost = Maps.newHashMap();
-			Map<String, Integer> uidComment = Maps.newHashMap();
-			Map<String, Integer> uidAttitude = Maps.newHashMap();
-			Map<String, Integer> ipRepost = Maps.newHashMap();
-			Map<String, Integer> ipComment = Maps.newHashMap();
-			Map<String, Integer> ipAttitude = Maps.newHashMap();
-
-			for (File file : fileList) {
-				String filePath = file.getAbsolutePath();
-				if (filePath == null || !filePath.endsWith(".txt")) { continue; }
-				String interactionName = file.getName().split("\\.")[0];
-
-				BufferedReader innerReader = new BufferedReader(new FileReader(new File(filePath)));
-				String innerLine = null;
-				while ((innerLine = innerReader.readLine()) != null) {
-					String[] interactionArray = innerLine.split("\t");
-					String uidStr = interactionArray[1];
-					String ipStr = interactionArray[3];
-
-					if (interactionName.equals("转发")) {
-						if (uidRepost.get(uidStr) != null) {
-							int count = uidRepost.get(uidStr);
-							count++;
-							uidRepost.put(uidStr, count);
-						} else {
-							uidRepost.put(uidStr, 1);
-						}
-
-						if (ipRepost.get(ipStr) != null) {
-							int count = ipRepost.get(ipStr);
-							count++;
-							ipRepost.put(ipStr, count);
-						} else {
-							ipRepost.put(ipStr, 1);
-						}
-					} else if (interactionName.equals("评论")) {
-						if (uidComment.get(uidStr) != null) {
-							int count = uidComment.get(uidStr);
-							count++;
-							uidComment.put(uidStr, count);
-						} else {
-							uidComment.put(uidStr, 1);
-						}
-
-						if (ipComment.get(ipStr) != null) {
-							int count = ipComment.get(ipStr);
-							count++;
-							ipComment.put(ipStr, count);
-						} else {
-							ipComment.put(ipStr, 1);
-						}
-					} else if (interactionName.equals("赞")) {
-						if (uidAttitude.get(uidStr) != null) {
-							int count = uidAttitude.get(uidStr);
-							count++;
-							uidAttitude.put(uidStr, count);
-						} else {
-							uidAttitude.put(uidStr, 1);
-						}
-
-						if (ipAttitude.get(ipStr) != null) {
-							int count = ipAttitude.get(ipStr);
-							count++;
-							ipAttitude.put(ipStr, count);
-						} else {
-							ipAttitude.put(ipStr, 1);
-						}
-					}
-				}
-			}
-
-			List<InnerCount> sortUidRepost = InnerCount.getSortList(ipAttitude);
-			for (InnerCount innerCount : sortUidRepost) {
-				StringBuilder sb = new StringBuilder();
-				sb.append(innerCount.uid).append("\t").append(innerCount.count);
-				System.out.println(sb.toString());
-			}
-
-			/*HSSFWorkbook workbook = new HSSFWorkbook();
-			// Sheet样式
-			HSSFCellStyle sheetStyle = workbook.createCellStyle();
-			sheetStyle.setFillBackgroundColor(HSSFColor.GREY_25_PERCENT.index);
-			sheetStyle.setFillForegroundColor(HSSFColor.GREY_25_PERCENT.index);
-
-			HSSFFont headfont = workbook.createFont();
-			headfont.setFontName("黑体");
-			headfont.setFontHeightInPoints((short) 22);// 字体大小
-			headfont.setBoldweight(HSSFFont.BOLDWEIGHT_BOLD);// 加粗
-			// 另一个样式
-			HSSFCellStyle headstyle = workbook.createCellStyle();
-			headstyle.setFont(headfont);
-			headstyle.setAlignment(HSSFCellStyle.ALIGN_CENTER);// 左右居中
-			headstyle.setVerticalAlignment(HSSFCellStyle.VERTICAL_CENTER);// 上下居中
-			headstyle.setLocked(true);
-
-			HSSFFont font = workbook.createFont();
-			font.setFontName("宋体");
-			font.setFontHeightInPoints((short) 12);
-
-			// 普通单元格样式
-			HSSFCellStyle style = workbook.createCellStyle();
-			style.setFont(font);
-			style.setAlignment(HSSFCellStyle.ALIGN_LEFT);// 左右居中
-			style.setVerticalAlignment(HSSFCellStyle.VERTICAL_TOP);// 上下居中
-			style.setWrapText(true);
-			style.setLeftBorderColor(HSSFColor.BLACK.index);
-			style.setBorderLeft((short) 1);
-			style.setRightBorderColor(HSSFColor.BLACK.index);
-			style.setBorderRight((short) 1);
-			style.setBorderBottom(HSSFCellStyle.BORDER_THIN); // 设置单元格的边框为粗体
-			style.setBottomBorderColor(HSSFColor.BLACK.index); // 设置单元格的边框颜色．
-			style.setFillForegroundColor(HSSFColor.WHITE.index);// 设置单元格的背景颜色
-
-			// 另一个样式
-			HSSFCellStyle centerstyle = workbook.createCellStyle();
-			centerstyle.setFont(font);
-			centerstyle.setAlignment(HSSFCellStyle.ALIGN_CENTER);// 左右居中
-			centerstyle.setVerticalAlignment(HSSFCellStyle.VERTICAL_CENTER);// 上下居中
-			centerstyle.setWrapText(true);
-			centerstyle.setLeftBorderColor(HSSFColor.BLACK.index);
-			centerstyle.setBorderLeft((short) 1);
-			centerstyle.setRightBorderColor(HSSFColor.BLACK.index);
-			centerstyle.setBorderRight((short) 1);
-			centerstyle.setBorderBottom(HSSFCellStyle.BORDER_THIN); // 设置单元格的边框为粗体
-			centerstyle.setBottomBorderColor(HSSFColor.BLACK.index); // 设置单元格的边框颜色．
-			centerstyle.setFillForegroundColor(HSSFColor.WHITE.index);// 设置单元格的背景颜色．*/
-
-			/*int lineNum = 1;
-			String line;
-			reader = new BufferedReader(new FileReader(new File("/Users/erming/Desktop/mids.txt")));
-			while ((line = reader.readLine()) != null) {
-				System.out.println(lineNum++);
-				getddd(line, midInteraction, userService);
-				*//*System.out.println("[Excel export]" + lineNum++);
-				int rowNum = 0;
-				String[] linkArray = line.split("\t");
-				String link = linkArray[0];
-				String hexMid = link.substring(link.lastIndexOf("/"));
-				long mid = Base62Parse.decode(hexMid);
-
-				Map<String, List<String>> interactionMap = midInteraction.get(mid);
-				if (MapUtils.isEmpty(interactionMap)) { continue; }
-
-				HSSFSheet sheet = workbook.createSheet(String.valueOf(mid));
-				for (int i = 0; i <= 4; i++) { sheet.setDefaultColumnStyle((short) i, sheetStyle); }
-				sheet.setColumnWidth(0, 6000);
-				sheet.setColumnWidth(1, 4000);
-				sheet.setColumnWidth(2, 5000);
-				sheet.setColumnWidth(3, 4000);
-				sheet.setColumnWidth(4, 4000);
-
-				HSSFRow row = sheet.createRow(rowNum);
-				row.setHeight((short) 800);
-				HSSFCell cell = row.createCell(0);
-				cell.setCellType(HSSFCell.CELL_TYPE_FORMULA);//CELL_TYPE_FORMULA
-				cell.setCellFormula("HYPERLINK(\"" + link + "\",\""+ link +"\")");
-				cell.setCellStyle(headstyle);
-				sheet.addMergedRegion(new CellRangeAddress(rowNum,rowNum,0,3));
-
-				row = sheet.createRow(++rowNum);
-				cell = row.createCell(0);
-				cell.setCellValue("转发数");
-				cell.setCellStyle(style);
-				cell = row.createCell(1);
-				cell.setCellValue("评论数");
-				cell.setCellStyle(style);
-				cell = row.createCell(2);
-				cell.setCellValue("赞数");
-				cell.setCellStyle(style);
-				cell = row.createCell(3);
-				cell.setCellValue("总计数");
-				cell.setCellStyle(style);
-
-				row = sheet.createRow(++rowNum);
-				cell = row.createCell(0);
-				cell.setCellValue(linkArray[1]);
-				cell.setCellStyle(style);
-				cell = row.createCell(1);
-				cell.setCellValue(linkArray[2]);
-				cell.setCellStyle(style);
-				cell = row.createCell(2);
-				cell.setCellValue(linkArray[3]);
-				cell.setCellStyle(style);
-				cell = row.createCell(3);
-				cell.setCellValue(linkArray[4]);
-				cell.setCellStyle(style);
-
-				row = sheet.createRow(++rowNum);
-				row = sheet.createRow(++rowNum);
-				cell = row.createCell(0);
-				cell.setCellValue("转发");
-				cell.setCellStyle(centerstyle);
-				sheet.addMergedRegion(new CellRangeAddress(rowNum,rowNum,0,3));
-
-				row = sheet.createRow(++rowNum);
-				cell = row.createCell(0);
-				cell.setCellValue("转发时间");
-				cell.setCellStyle(style);
-				cell = row.createCell(1);
-				cell.setCellValue("转发用户");
-				cell.setCellStyle(style);
-				cell = row.createCell(2);
-				cell.setCellValue("转发用户质量等级");
-				cell.setCellStyle(style);
-				cell = row.createCell(3);
-				cell.setCellValue("IP");
-				cell.setCellStyle(style);
-//				cell = row.createCell(4);
-//				cell.setCellValue("IP所属区域");
-//				cell.setCellStyle(style);
-
-				if (MapUtils.isNotEmpty(interactionMap) && CollectionUtils.isNotEmpty(interactionMap.get("转发"))) {
-					for (InnerLine innerLine : InnerLine.getSortList(interactionMap.get("转发"))) {
-						row = sheet.createRow(++rowNum);
-						setRowText(userService, row, style, innerLine.line);
-					}
-				}
-
-				row = sheet.createRow(++rowNum);
-				row = sheet.createRow(++rowNum);
-				cell = row.createCell(0);
-				cell.setCellValue("评论");
-				cell.setCellStyle(centerstyle);
-				sheet.addMergedRegion(new CellRangeAddress(rowNum,rowNum,0,3));
-
-				row = sheet.createRow(++rowNum);
-				cell = row.createCell(0);
-				cell.setCellValue("评论时间");
-				cell.setCellStyle(style);
-				cell = row.createCell(1);
-				cell.setCellValue("评论用户");
-				cell.setCellStyle(style);
-				cell = row.createCell(2);
-				cell.setCellValue("评论用户质量等级");
-				cell.setCellStyle(style);
-				cell = row.createCell(3);
-				cell.setCellValue("IP");
-				cell.setCellStyle(style);
-//				cell = row.createCell(4);
-//				cell.setCellValue("IP所属区域");
-//				cell.setCellStyle(style);
-
-				if (MapUtils.isNotEmpty(interactionMap) && CollectionUtils.isNotEmpty(interactionMap.get("评论"))) {
-					for (InnerLine innerLine : InnerLine.getSortList(interactionMap.get("评论"))) {
-						row = sheet.createRow(++rowNum);
-						setRowText(userService, row, style, innerLine.line);
-					}
-				}
-
-				row = sheet.createRow(++rowNum);
-				row = sheet.createRow(++rowNum);
-				cell = row.createCell(0);
-				cell.setCellValue("点赞");
-				cell.setCellStyle(centerstyle);
-				sheet.addMergedRegion(new CellRangeAddress(rowNum,rowNum,0,3));
-
-				row = sheet.createRow(++rowNum);
-				cell = row.createCell(0);
-				cell.setCellValue("点赞时间");
-				cell.setCellStyle(style);
-				cell = row.createCell(1);
-				cell.setCellValue("点赞用户");
-				cell.setCellStyle(style);
-				cell = row.createCell(2);
-				cell.setCellValue("点赞用户质量等级");
-				cell.setCellStyle(style);
-				cell = row.createCell(3);
-				cell.setCellValue("IP");
-				cell.setCellStyle(style);
-//				cell = row.createCell(4);
-//				cell.setCellValue("IP所属区域");
-//				cell.setCellStyle(style);
-
-				if (MapUtils.isNotEmpty(interactionMap) && CollectionUtils.isNotEmpty(interactionMap.get("赞"))) {
-					for (InnerLine innerLine : InnerLine.getSortList(interactionMap.get("赞"))) {
-						row = sheet.createRow(++rowNum);
-						setRowText(userService, row, style, innerLine.line);
-					}
-				}*//*
-			}*/
-
-			/*String filename = "/Users/erming/Desktop/interaction.xls";//设置下载时客户端Excel的名称
-			workbook.write(new FileOutputStream(new File(filename)));*/
-		} catch (Exception ex) {
-
-		}
-	}
-
-	public static void getddd(String line, Map<Long, Map<String, List<String>>> midInteraction, UserService userService) throws FileNotFoundException {
-		HSSFWorkbook workbook = new HSSFWorkbook();
-		HSSFCellStyle sheetStyle = workbook.createCellStyle();
-		sheetStyle.setFillBackgroundColor(HSSFColor.GREY_25_PERCENT.index);
-		sheetStyle.setFillForegroundColor(HSSFColor.GREY_25_PERCENT.index);
-
-		HSSFFont headfont = workbook.createFont();
-		headfont.setFontName("黑体");
-		headfont.setFontHeightInPoints((short) 22);// 字体大小
-		headfont.setBoldweight(HSSFFont.BOLDWEIGHT_BOLD);// 加粗
-
-		HSSFCellStyle headstyle = workbook.createCellStyle();
-		headstyle.setFont(headfont);
-		headstyle.setAlignment(HSSFCellStyle.ALIGN_CENTER);// 左右居中
-		headstyle.setVerticalAlignment(HSSFCellStyle.VERTICAL_CENTER);// 上下居中
-		headstyle.setLocked(true);
-
-		HSSFFont font = workbook.createFont();
-		font.setFontName("宋体");
-		font.setFontHeightInPoints((short) 12);
-
-		HSSFCellStyle style = workbook.createCellStyle();
-		style.setFont(font);
-		style.setAlignment(HSSFCellStyle.ALIGN_LEFT);// 左右居中
-		style.setVerticalAlignment(HSSFCellStyle.VERTICAL_TOP);// 上下居中
-		style.setWrapText(true);
-		style.setLeftBorderColor(HSSFColor.BLACK.index);
-		style.setBorderLeft((short) 1);
-		style.setRightBorderColor(HSSFColor.BLACK.index);
-		style.setBorderRight((short) 1);
-		style.setBorderBottom(HSSFCellStyle.BORDER_THIN); // 设置单元格的边框为粗体
-		style.setBottomBorderColor(HSSFColor.BLACK.index); // 设置单元格的边框颜色．
-		style.setFillForegroundColor(HSSFColor.WHITE.index);// 设置单元格的背景颜色
-
-		HSSFCellStyle centerstyle = workbook.createCellStyle();
-		centerstyle.setFont(font);
-		centerstyle.setAlignment(HSSFCellStyle.ALIGN_CENTER);// 左右居中
-		centerstyle.setVerticalAlignment(HSSFCellStyle.VERTICAL_CENTER);// 上下居中
-		centerstyle.setWrapText(true);
-		centerstyle.setLeftBorderColor(HSSFColor.BLACK.index);
-		centerstyle.setBorderLeft((short) 1);
-		centerstyle.setRightBorderColor(HSSFColor.BLACK.index);
-		centerstyle.setBorderRight((short) 1);
-		centerstyle.setBorderBottom(HSSFCellStyle.BORDER_THIN); // 设置单元格的边框为粗体
-		centerstyle.setBottomBorderColor(HSSFColor.BLACK.index); // 设置单元格的边框颜色．
-		centerstyle.setFillForegroundColor(HSSFColor.WHITE.index);// 设置单元格的背景颜色．
-
-		int rowNum = 0;
-		String[] linkArray = line.split("\t");
-		String link = linkArray[0];
-		String hexMid = link.substring(link.lastIndexOf("/"));
-		long mid = Base62Parse.decode(hexMid);
-
-		Map<String, List<String>> interactionMap = midInteraction.get(mid);
-		if (MapUtils.isEmpty(interactionMap)) { return; }
-
-		HSSFSheet sheet = workbook.createSheet(String.valueOf(mid));
-		for (int i = 0; i <= 4; i++) { sheet.setDefaultColumnStyle((short) i, sheetStyle); }
-		sheet.setColumnWidth(0, 6000);
-		sheet.setColumnWidth(1, 4000);
-		sheet.setColumnWidth(2, 5000);
-		sheet.setColumnWidth(3, 5000);
-
-		HSSFRow row = sheet.createRow(rowNum);
-		row.setHeight((short) 800);
-		HSSFCell cell = row.createCell(0);
-		cell.setCellType(HSSFCell.CELL_TYPE_FORMULA);//CELL_TYPE_FORMULA
-		cell.setCellFormula("HYPERLINK(\"" + link + "\",\""+ link +"\")");
-		cell.setCellStyle(headstyle);
-		sheet.addMergedRegion(new CellRangeAddress(rowNum,rowNum,0,3));
-
-		row = sheet.createRow(++rowNum);
-		cell = row.createCell(0);
-		cell.setCellValue("转发数");
-		cell.setCellStyle(style);
-		cell = row.createCell(1);
-		cell.setCellValue("评论数");
-		cell.setCellStyle(style);
-		cell = row.createCell(2);
-		cell.setCellValue("赞数");
-		cell.setCellStyle(style);
-		cell = row.createCell(3);
-		cell.setCellValue("总计数");
-		cell.setCellStyle(style);
-
-		row = sheet.createRow(++rowNum);
-		cell = row.createCell(0);
-		cell.setCellValue(linkArray[1]);
-		cell.setCellStyle(style);
-		cell = row.createCell(1);
-		cell.setCellValue(linkArray[2]);
-		cell.setCellStyle(style);
-		cell = row.createCell(2);
-		cell.setCellValue(linkArray[3]);
-		cell.setCellStyle(style);
-		cell = row.createCell(3);
-		cell.setCellValue(linkArray[4]);
-		cell.setCellStyle(style);
-
-		row = sheet.createRow(++rowNum);
-		row = sheet.createRow(++rowNum);
-		cell = row.createCell(0);
-		cell.setCellValue("转发");
-		cell.setCellStyle(centerstyle);
-		cell = row.createCell(1);
-		cell.setCellStyle(centerstyle);
-		cell = row.createCell(2);
-		cell.setCellStyle(centerstyle);
-		cell = row.createCell(3);
-		cell.setCellStyle(centerstyle);
-		sheet.addMergedRegion(new CellRangeAddress(rowNum,rowNum,0,3));
-
-		row = sheet.createRow(++rowNum);
-		cell = row.createCell(0);
-		cell.setCellValue("转发时间");
-		cell.setCellStyle(style);
-		cell = row.createCell(1);
-		cell.setCellValue("转发用户");
-		cell.setCellStyle(style);
-		cell = row.createCell(2);
-		cell.setCellValue("转发用户质量等级");
-		cell.setCellStyle(style);
-		cell = row.createCell(3);
-		cell.setCellValue("IP");
-		cell.setCellStyle(style);
-
-		if (MapUtils.isNotEmpty(interactionMap) && CollectionUtils.isNotEmpty(interactionMap.get("转发"))) {
-			for (InnerLine innerLine : InnerLine.getSortList(interactionMap.get("转发"))) {
-				row = sheet.createRow(++rowNum);
-				setRowText(userService, row, style, innerLine.line);
-			}
-		}
-
-		row = sheet.createRow(++rowNum);
-		row = sheet.createRow(++rowNum);
-		cell = row.createCell(0);
-		cell.setCellValue("评论");
-		cell.setCellStyle(centerstyle);
-		cell = row.createCell(1);
-		cell.setCellStyle(centerstyle);
-		cell = row.createCell(2);
-		cell.setCellStyle(centerstyle);
-		cell = row.createCell(3);
-		cell.setCellStyle(centerstyle);
-		sheet.addMergedRegion(new CellRangeAddress(rowNum,rowNum,0,3));
-
-		row = sheet.createRow(++rowNum);
-		cell = row.createCell(0);
-		cell.setCellValue("评论时间");
-		cell.setCellStyle(style);
-		cell = row.createCell(1);
-		cell.setCellValue("评论用户");
-		cell.setCellStyle(style);
-		cell = row.createCell(2);
-		cell.setCellValue("评论用户质量等级");
-		cell.setCellStyle(style);
-		cell = row.createCell(3);
-		cell.setCellValue("IP");
-		cell.setCellStyle(style);
-
-		if (MapUtils.isNotEmpty(interactionMap) && CollectionUtils.isNotEmpty(interactionMap.get("评论"))) {
-			for (InnerLine innerLine : InnerLine.getSortList(interactionMap.get("评论"))) {
-				row = sheet.createRow(++rowNum);
-				setRowText(userService, row, style, innerLine.line);
-			}
-		}
-
-		row = sheet.createRow(++rowNum);
-		row = sheet.createRow(++rowNum);
-		cell = row.createCell(0);
-		cell.setCellValue("点赞");
-		cell.setCellStyle(centerstyle);
-		cell = row.createCell(1);
-		cell.setCellStyle(centerstyle);
-		cell = row.createCell(2);
-		cell.setCellStyle(centerstyle);
-		cell = row.createCell(3);
-		cell.setCellStyle(centerstyle);
-		sheet.addMergedRegion(new CellRangeAddress(rowNum,rowNum,0,3));
-
-		row = sheet.createRow(++rowNum);
-		cell = row.createCell(0);
-		cell.setCellValue("点赞时间");
-		cell.setCellStyle(style);
-		cell = row.createCell(1);
-		cell.setCellValue("点赞用户");
-		cell.setCellStyle(style);
-		cell = row.createCell(2);
-		cell.setCellValue("点赞用户质量等级");
-		cell.setCellStyle(style);
-		cell = row.createCell(3);
-		cell.setCellValue("IP");
-		cell.setCellStyle(style);
-
-		if (MapUtils.isNotEmpty(interactionMap) && CollectionUtils.isNotEmpty(interactionMap.get("赞"))) {
-			for (InnerLine innerLine : InnerLine.getSortList(interactionMap.get("赞"))) {
-				row = sheet.createRow(++rowNum);
-				setRowText(userService, row, style, innerLine.line);
-			}
-		}
-
-		String filename = "/Users/erming/Desktop/status/" + String.valueOf(mid) + ".xls";//设置下载时客户端Excel的名称
-		try {
-			workbook.write(new FileOutputStream(new File(filename)));
-		} catch (IOException e) {
-			System.out.println("error," + mid);
-		}
-	}
-
-	static class InnerLine {
-		long timeMillis;
-		String line;
-
-		InnerLine(long timeMillis, String line) {
-			this.timeMillis = timeMillis;
-			this.line = line;
-		}
-
-		public static List<InnerLine> getSortList(List<String> stringList) {
-			List<InnerLine> sorInnerLine = new ArrayList<>();
-			for (String line : stringList) {
-				String[] oplogArray = line.split("\t");
-				String dateStr = oplogArray[0];
-				try {
-					SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-					java.util.Date date = (java.util.Date) sdf.parse(dateStr);
-					sorInnerLine.add(new InnerLine(date.getTime(), line));
-				} catch (ParseException e) {
-					e.printStackTrace();
-				}
-			}
-
-			Collections.sort(sorInnerLine, new Comparator<InnerLine>() {
-				@Override
-				public int compare(InnerLine o1, InnerLine o2) {
-					return (o1.timeMillis < o2.timeMillis) ? -1 : (o1.timeMillis == o2.timeMillis) ? 0 : 1;
-				}
-			});
-
-			return sorInnerLine;
-		}
-	}
-
-	static class InnerCount {
-		String uid;
-		int count;
-
-		InnerCount(String uid, int count) {
-			this.uid = uid;
-			this.count = count;
-		}
-
-		public static List<InnerCount> getSortList(Map<String ,Integer> map) {
-			List<InnerCount> sorInnerCount = new ArrayList<>();
-			for (Map.Entry<String, Integer> uidRepostEntry : map.entrySet()) {
-				String ip = uidRepostEntry.getKey();
-				int count = uidRepostEntry.getValue();
-				sorInnerCount.add(new InnerCount(ip, count));
-			}
-
-			Collections.sort(sorInnerCount, new Comparator<InnerCount>() {
-				@Override
-				public int compare(InnerCount o1, InnerCount o2) {
-					return (o1.count < o2.count) ? 1 : (o1.count == o2.count) ? 0 : -1;
-				}
-			});
-
-			return sorInnerCount;
-		}
-	}
-
-	private static void setRowText(UserService userService, HSSFRow row, HSSFCellStyle style, String oplog) {
-		String[] oplogArray = oplog.split("\t");
-		long uid = Long.valueOf(oplogArray[1]);
-
-		HSSFCell cell = row.createCell(0);
-		cell.setCellValue(oplogArray[0]);
-		cell.setCellStyle(style);
-		cell = row.createCell(1);
-		cell.setCellValue(oplogArray[1]);
-		cell.setCellStyle(style);
-		cell = row.createCell(2);
-		Map<Long, UserAttr> userAttrMap = userService.getAllUserAttr(new long[]{uid});
-		if (userAttrMap != null && userAttrMap.get(uid) != null) {
-			cell.setCellValue(userAttrMap.get(uid).getLevel());
-		} else {
-			cell.setCellValue(userAttrMap.get(uid).getLevel());
-		}
-		cell.setCellStyle(style);
-		cell = row.createCell(3);
-		cell.setCellValue(oplogArray[3]);
-		cell.setCellStyle(style);
-//		cell = row.createCell(4);
-//		cell.setCellValue(GetAddressByIp(oplogArray[3]));
-//		cell.setCellStyle(style);
-	}
-
-	public void excelPrint() {
-		HSSFWorkbook workbook = new HSSFWorkbook();// 创建一个Excel文件
-		HSSFSheet sheet = workbook.createSheet();// 创建一个Excel的Sheet
-		sheet.createFreezePane(1, 3);// 冻结
-		// 设置列宽
-		sheet.setColumnWidth(0, 1000);
-		sheet.setColumnWidth(1, 3500);
-		sheet.setColumnWidth(2, 3500);
-		sheet.setColumnWidth(3, 6500);
-		sheet.setColumnWidth(4, 6500);
-		sheet.setColumnWidth(5, 6500);
-		sheet.setColumnWidth(6, 6500);
-		sheet.setColumnWidth(7, 2500);
-
-		// Sheet样式
-		HSSFCellStyle sheetStyle = workbook.createCellStyle();
-		// 背景色的设定
-		sheetStyle.setFillBackgroundColor(HSSFColor.GREY_25_PERCENT.index);
-		// 前景色的设定
-		sheetStyle.setFillForegroundColor(HSSFColor.GREY_25_PERCENT.index);
-		// 填充模式
-		sheetStyle.setFillPattern(HSSFCellStyle.FINE_DOTS);
-		// 设置列的样式
-		for (int i = 0; i <= 14; i++) {
-			sheet.setDefaultColumnStyle((short) i, sheetStyle);
-		}
-		// 设置字体
-		HSSFFont headfont = workbook.createFont();
-		headfont.setFontName("黑体");
-		headfont.setFontHeightInPoints((short) 20);// 字体大小
-		headfont.setBoldweight(HSSFFont.BOLDWEIGHT_BOLD);// 加粗
-		// 另一个样式
-		HSSFCellStyle headstyle = workbook.createCellStyle();
-		headstyle.setFont(headfont);
-		headstyle.setAlignment(HSSFCellStyle.ALIGN_CENTER);// 左右居中
-		headstyle.setVerticalAlignment(HSSFCellStyle.VERTICAL_CENTER);// 上下居中
-		headstyle.setLocked(true);
-		headstyle.setWrapText(true);// 自动换行
-		// 另一个字体样式
-		HSSFFont columnHeadFont = workbook.createFont();
-		columnHeadFont.setFontName("宋体");
-		columnHeadFont.setFontHeightInPoints((short) 10);
-		columnHeadFont.setBoldweight(HSSFFont.BOLDWEIGHT_BOLD);
-		// 列头的样式
-		HSSFCellStyle columnHeadStyle = workbook.createCellStyle();
-		columnHeadStyle.setFont(columnHeadFont);
-		columnHeadStyle.setAlignment(HSSFCellStyle.ALIGN_CENTER);// 左右居中
-		columnHeadStyle.setVerticalAlignment(HSSFCellStyle.VERTICAL_CENTER);// 上下居中
-		columnHeadStyle.setLocked(true);
-		columnHeadStyle.setWrapText(true);
-		columnHeadStyle.setLeftBorderColor(HSSFColor.BLACK.index);// 左边框的颜色
-		columnHeadStyle.setBorderLeft((short) 1);// 边框的大小
-		columnHeadStyle.setRightBorderColor(HSSFColor.BLACK.index);// 右边框的颜色
-		columnHeadStyle.setBorderRight((short) 1);// 边框的大小
-		columnHeadStyle.setBorderBottom(HSSFCellStyle.BORDER_THIN); // 设置单元格的边框为粗体
-		columnHeadStyle.setBottomBorderColor(HSSFColor.BLACK.index); // 设置单元格的边框颜色
-		// 设置单元格的背景颜色（单元格的样式会覆盖列或行的样式）
-		columnHeadStyle.setFillForegroundColor(HSSFColor.WHITE.index);
-
-		HSSFFont font = workbook.createFont();
-		font.setFontName("宋体");
-		font.setFontHeightInPoints((short) 10);
-		// 普通单元格样式
-		HSSFCellStyle style = workbook.createCellStyle();
-		style.setFont(font);
-		style.setAlignment(HSSFCellStyle.ALIGN_LEFT);// 左右居中
-		style.setVerticalAlignment(HSSFCellStyle.VERTICAL_TOP);// 上下居中
-		style.setWrapText(true);
-		style.setLeftBorderColor(HSSFColor.BLACK.index);
-		style.setBorderLeft((short) 1);
-		style.setRightBorderColor(HSSFColor.BLACK.index);
-		style.setBorderRight((short) 1);
-		style.setBorderBottom(HSSFCellStyle.BORDER_THIN); // 设置单元格的边框为粗体
-		style.setBottomBorderColor(HSSFColor.BLACK.index); // 设置单元格的边框颜色．
-		style.setFillForegroundColor(HSSFColor.WHITE.index);// 设置单元格的背景颜色．
-		// 另一个样式
-		HSSFCellStyle centerstyle = workbook.createCellStyle();
-		centerstyle.setFont(font);
-		centerstyle.setAlignment(HSSFCellStyle.ALIGN_CENTER);// 左右居中
-		centerstyle.setVerticalAlignment(HSSFCellStyle.VERTICAL_CENTER);// 上下居中
-		centerstyle.setWrapText(true);
-		centerstyle.setLeftBorderColor(HSSFColor.BLACK.index);
-		centerstyle.setBorderLeft((short) 1);
-		centerstyle.setRightBorderColor(HSSFColor.BLACK.index);
-		centerstyle.setBorderRight((short) 1);
-		centerstyle.setBorderBottom(HSSFCellStyle.BORDER_THIN); // 设置单元格的边框为粗体
-		centerstyle.setBottomBorderColor(HSSFColor.BLACK.index); // 设置单元格的边框颜色．
-		centerstyle.setFillForegroundColor(HSSFColor.WHITE.index);// 设置单元格的背景颜色．
-
-		try {
-			// 创建第一行
-			HSSFRow row0 = sheet.createRow(0);
-			// 设置行高
-			row0.setHeight((short) 900);
-			// 创建第一列
-			HSSFCell cell0 = row0.createCell(0);
-			cell0.setCellValue(new HSSFRichTextString("中非发展基金投资项目调度会工作落实情况对照表"));
-			cell0.setCellStyle(headstyle);
-			/**
-			 * 合并单元格
-			 *    第一个参数：第一个单元格的行数（从0开始）
-			 *    第二个参数：第二个单元格的行数（从0开始）
-			 *    第三个参数：第一个单元格的列数（从0开始）
-			 *    第四个参数：第二个单元格的列数（从0开始）
-			 */
-			CellRangeAddress range = new CellRangeAddress(0, 0, 0, 7);
-			sheet.addMergedRegion(range);
-			// 创建第二行
-			HSSFRow row1 = sheet.createRow(1);
-			HSSFCell cell1 = row1.createCell(0);
-			cell1.setCellValue(new HSSFRichTextString("本次会议时间：2009年8月31日       前次会议时间：2009年8月24日"));
-			cell1.setCellStyle(centerstyle);
-			// 合并单元格
-			range = new CellRangeAddress(1, 2, 0, 7);
-			sheet.addMergedRegion(range);
-			// 第三行
-			HSSFRow row2 = sheet.createRow(3);
-			row2.setHeight((short) 750);
-			HSSFCell cell = row2.createCell(0);
-			cell.setCellValue(new HSSFRichTextString("责任者"));
-			cell.setCellStyle(columnHeadStyle);
-			cell = row2.createCell(1);
-			cell.setCellValue(new HSSFRichTextString("成熟度排序"));
-			cell.setCellStyle(columnHeadStyle);
-			cell = row2.createCell(2);
-			cell.setCellValue(new HSSFRichTextString("事项"));
-			cell.setCellStyle(columnHeadStyle);
-			cell = row2.createCell(3);
-			cell.setCellValue(new HSSFRichTextString("前次会议要求/n/新项目的项目概要"));
-			cell.setCellStyle(columnHeadStyle);
-			cell = row2.createCell(4);
-			cell.setCellValue(new HSSFRichTextString("上周工作进展"));
-			cell.setCellStyle(columnHeadStyle);
-			cell = row2.createCell(5);
-			cell.setCellValue(new HSSFRichTextString("本周工作计划"));
-			cell.setCellStyle(columnHeadStyle);
-			cell = row2.createCell(6);
-			cell.setCellValue(new HSSFRichTextString("问题和建议"));
-			cell.setCellStyle(columnHeadStyle);
-			cell = row2.createCell(7);
-			cell.setCellValue(new HSSFRichTextString("备 注"));
-			cell.setCellStyle(columnHeadStyle);
-			// 访问数据库，得到数据集
-			int m = 4;
-			int k = 4;
-			for (int i = 0; i < 1; i++) {
-				HSSFRow row = sheet.createRow(m);
-				cell = row.createCell(0);
-				cell.setCellValue(new HSSFRichTextString("dname"));
-				cell.setCellStyle(centerstyle);
-				// 合并单元格
-				range = new CellRangeAddress(m, m + 0, 0, 0);
-				sheet.addMergedRegion(range);
-
-				for (int j = 0; j < 1; j++) {
-					// 遍历数据集创建Excel的行
-					row = sheet.getRow(k + j);
-					if (null == row) {
-						row = sheet.createRow(k + j);
-					}
-					cell = row.createCell(1);
-					cell.setCellValue("getWnumber");
-					cell.setCellStyle(centerstyle);
-					cell = row.createCell(2);
-					cell.setCellValue(new HSSFRichTextString("getWitem"));
-					cell.setCellStyle(style);
-					cell = row.createCell(3);
-					cell.setCellValue(new HSSFRichTextString("getWmeting"));
-					cell.setCellStyle(style);
-					cell = row.createCell(4);
-					cell.setCellValue(new HSSFRichTextString("getWbweek"));
-					cell.setCellStyle(style);
-					cell = row.createCell(5);
-					cell.setCellValue(new HSSFRichTextString("getWtweek"));
-					cell.setCellStyle(style);
-					cell = row.createCell(6);
-					cell.setCellValue(new HSSFRichTextString("getWproblem"));
-					cell.setCellStyle(style);
-					cell = row.createCell(7);
-					cell.setCellValue(new HSSFRichTextString("getWremark"));
-					cell.setCellStyle(style);
-				}
-			}
-			// 列尾
-			int footRownumber = sheet.getLastRowNum();
-			HSSFRow footRow = sheet.createRow(footRownumber + 1);
-			HSSFCell footRowcell = footRow.createCell(0);
-			footRowcell.setCellValue(new HSSFRichTextString("                    审  定：XXX      审  核：XXX     汇  总：XX"));
-			footRowcell.setCellStyle(centerstyle);
-			range = new CellRangeAddress(footRownumber + 1, footRownumber + 1, 0, 7);
-			sheet.addMergedRegion(range);
-
-//			HttpServletResponse response = getResponse();
-//			HttpServletRequest request = getRequest();
-//			String filename = "未命名.xls";//设置下载时客户端Excel的名称
-//			// 请见：http://zmx.javaeye.com/blog/622529
-//			filename = Util.encodeFilename(filename, request);
-//			response.setContentType("application/vnd.ms-excel");
-//			response.setHeader("Content-disposition", "attachment;filename=" + filename);
-//			OutputStream ouputStream = response.getOutputStream();
-//			workbook.write(ouputStream);
-//			ouputStream.flush();
-//			ouputStream.close();
-
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-	public static void excelPrint(String line, Map<String, List<String>> interactionMap) {
-		try {
-			//创建HSSFWorkbook对象(excel的文档对象)
-			HSSFWorkbook workbook = new HSSFWorkbook();
-			//建立新的sheet对象（excel的表单）
-			HSSFSheet sheet = workbook.createSheet("成绩表");
-			//在sheet里创建第一行，参数为行索引(excel的行)，可以是0～65535之间的任何一个
-			HSSFRow row1=sheet.createRow(0);
-			//创建单元格（excel的单元格，参数为列索引，可以是0～255之间的任何一个
-			HSSFCell cell=row1.createCell(0);
-
-			//设置单元格内容
-			cell.setCellValue("学员考试成绩一览表");
-			//合并单元格CellRangeAddress构造参数依次表示起始行，截至行，起始列， 截至列
-			sheet.addMergedRegion(new CellRangeAddress(0,0,0,3));
-			//在sheet里创建第二行
-			HSSFRow row2=sheet.createRow(1);
-			//创建单元格并设置单元格内容
-			row2.createCell(0).setCellValue("姓名");
-			row2.createCell(1).setCellValue("班级");
-			row2.createCell(2).setCellValue("笔试成绩");
-			row2.createCell(3).setCellValue("机试成绩");
-			//在sheet里创建第三行
-			HSSFRow row3=sheet.createRow(2);
-			row3.createCell(0).setCellValue("李明");
-			row3.createCell(1).setCellValue("As178");
-			row3.createCell(2).setCellValue(87);
-			row3.createCell(3).setCellValue(78);
-
-			String filename = "/Users/erming/Desktop/未命名.xls";//设置下载时客户端Excel的名称
-			workbook.write(new FileOutputStream(new File(filename)));
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-	private static void beanReader() {
-		List<String> xmlList = Lists.newArrayList();
-		xmlList.add("file:/Users/erming/platform/weibo-api-core/src/main/resources/spring/configloader.xml");
-		// xmlList.add("file:/Users/erming/platform/idea/api-engine/src/spring/comment-hot-flow.xml");
-		// xmlList.add("file:/Users/erming/platform/idea/api-comment/src/spring/service/status-repost.xml");
-		// xmlList.add("file:/Users/erming/platform/idea/web_v4/src/spring/graph_client.xml");
-		// xmlList.add("file:/Users/erming/platform/idea/api-comment/src/spring/service/status-count.xml");
-
-		xmlList.add("classpath:rpc.xml");
 		xmlList.add("classpath:mysql.xml");
+		xmlList.add("classpath:rpc.xml");
 		ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext(ArrayUtil.toStringArr(xmlList));
 		context.start();
 		SinaUserService sinaUserService = (SinaUserService) context.getBean("sinaUserService");
-
-		Date date = new Date(1533052800000L);
 		TableContainer tableContainer = (TableContainer) context.getBean("tableContainer");
 
-		commentListSerizationBenchTest(tableContainer, sinaUserService, true, true, 4274147129522788L, 200000, date);
-
-		System.out.println("\ndone!");
+		Date date = new Date(1533052800000L);
+		Status status = getStatus(tableContainer, sinaUserService, 4278668047843758L, true);
+		System.out.println("wait");
 	}
 
 	private static void updateStatusList(TableContainer tableContainer) {
@@ -1314,142 +211,9 @@ public class App
 					return null;
 				}
 			});
-
-			SimpleDateFormat dateFormater = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss");
-			for (StatusMeta statusMeta : statusMetas) {
-				//System.out.println("status_id:" + statusMeta.status_id + "\tcmt_id:" + statusMeta.cmt_id + "\tmflag:" + statusMeta.mflag + "\tuid:" + statusMeta.uid + "\tvflag:" + statusMeta.vflag);
-				Comment comment = getComment(tableContainer, sinaUserService, statusMeta.cmt_id);
-				StringBuilder sb = new StringBuilder();
-				sb.append(comment.text).append("\t");
-				SinaUser sinaUser = sinaUserService.getSinaUser(comment.getAuthorId());
-				sb.append(sinaUser != null ? sinaUser.screen_name : "frozen_user").append("\t");
-				sb.append(comment.ip).append("\t");
-				sb.append(GetAddressByIp(comment.ip)).append("\t");
-				sb.append(dateFormater.format(comment.created_at));
-				System.out.println(sb.toString());
-			}
 		}catch (Exception e) {
 			e.printStackTrace();
 		}
-	}
-
-	private static void getCommentTreeList(TableContainer tableContainer, SinaUserService sinaUserService, boolean isMid, boolean isAsc, long id, int count, Date createdDate) {
-		String tableName = isMid ? "cmt_tree_mid_rootid" : "cmt_tree_rootid_childid";
-		String sqlName = isMid ?
-				isAsc ? "GET_ROOT_COMMENT_ASC" : "GET_ROOT_COMMENT_DESC":
-				isAsc ? "GET_CHILD_COMMENT_ASC" : "GET_CHILD_COMMENT_DESC";
-		TableChannel tableChannel = tableContainer.getTableChannel(tableName, sqlName, id, createdDate);
-		String sql = tableChannel.getSql();
-		System.out.println(sql);
-
-		List<CmtTreeBean> list = Lists.newArrayList();
-		if (isMid) {
-			tableChannel.getJdbcTemplate().query(sql, new Object[] { id, count }, new RowMapper() {
-				@Override
-				public Object mapRow(ResultSet rs, int i) throws SQLException {
-					CmtTreeBean item = new CmtTreeBean();
-					item.setRoot_id(rs.getLong("mid"));
-					item.setChild_id(rs.getLong("cmt_root_id"));
-					item.setVflag(rs.getInt("vflag"));
-					item.setMflag(rs.getInt("mflag"));
-					list.add(item);
-					return null;
-				}
-			});
-		} else {
-			tableChannel.getJdbcTemplate().query(sql, new Object[] { id, count }, new RowMapper() {
-				@Override
-				public Object mapRow(ResultSet rs, int i) throws SQLException {
-					CmtTreeBean item = new CmtTreeBean();
-					item.setRoot_id(rs.getLong("cmt_root_id"));
-					item.setChild_id(rs.getLong("cmt_child_id"));
-					item.setVflag(rs.getInt("vflag"));
-					item.setMflag(rs.getInt("mflag"));
-					list.add(item);
-					return null;
-				}
-			});
-		}
-
-		List<Comment> commentList = Lists.newArrayList();
-		for (CmtTreeBean cmtTreeBean : list)
-			commentList.add(getComment(tableContainer, sinaUserService, cmtTreeBean.getChild_id()));
-
-		List<byte[]> commentPbList = Lists.newArrayList();
-		for (Comment comment : commentList)
-			commentPbList.add(CommentPBUtil.toPB(comment, false, false));
-
-		long start = System.currentTimeMillis();
-		for (byte[] commentPb : commentPbList) {
-			Comment comment = CommentPBUtil.parseFromPB(commentPb);
-		}
-		System.out.println("time consume: " + (System.currentTimeMillis() - start) + ", size:" + commentPbList.size());
-
-//		SimpleDateFormat dateFormater = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss");
-//		for (CmtTreeBean cmtTreeBean : list) {
-//			//System.out.println("status_id:" + statusMeta.status_id + "\tcmt_id:" + statusMeta.cmt_id + "\tmflag:" + statusMeta.mflag + "\tuid:" + statusMeta.uid + "\tvflag:" + statusMeta.vflag);
-//			Comment comment = getComment(tableContainer, sinaUserService, cmtTreeBean.getChild_id());
-//			StringBuilder sb = new StringBuilder();
-//			sb.append(dateFormater.format(comment.created_at)).append("\t");
-//			sb.append(getState(comment)).append("\t");
-//			sb.append(comment.text).append("\t");
-//			sb.append(comment.author != null ? comment.author.screen_name : "frozen_user").append("\t");
-//			sb.append(comment.ip);
-//			System.out.println(sb.toString());
-//		}
-	}
-
-	private static void commentListSerizationBenchTest(TableContainer tableContainer, SinaUserService sinaUserService, boolean isMid, boolean isAsc, long id, int count, Date createdDate) {
-		List<CmtTreeBean> commentBeanList = getCommentBeanList(tableContainer, isMid, id, count, createdDate);
-		System.out.println(commentBeanList.size());
-	}
-
-	private static List<CmtTreeBean> getCommentBeanList(TableContainer tableContainer, boolean isMid, long id, int count, Date createdDate) {
-		String tableName = isMid ? "cmt_tree_mid_rootid" : "cmt_tree_rootid_childid";
-		String sqlName = isMid ? "GET_TEST_ROOT_COMMENT" : "GET_TEST_CHILD_COMMENT";
-		TableChannel tableChannel = tableContainer.getTableChannel(tableName, sqlName, id, createdDate);
-		String sql = tableChannel.getSql();
-
-		long start = System.currentTimeMillis();
-
-		List<CmtTreeBean> list = Lists.newArrayList();
-		int MAX_FETCH_SIZE = 2000;
-		int offset = 0;
-
-		while (offset < count) {
-			if (isMid) {
-				tableChannel.getJdbcTemplate().query(sql, new Object[] { MAX_FETCH_SIZE, offset }, new RowMapper() {
-					@Override
-					public Object mapRow(ResultSet rs, int i) throws SQLException {
-						CmtTreeBean item = new CmtTreeBean();
-						item.setRoot_id(rs.getLong("mid"));
-						item.setChild_id(rs.getLong("cmt_root_id"));
-						item.setVflag(rs.getInt("vflag"));
-						item.setMflag(rs.getInt("mflag"));
-						list.add(item);
-						return null;
-					}
-				});
-			} else {
-				tableChannel.getJdbcTemplate().query(sql, new Object[] { MAX_FETCH_SIZE, offset }, new RowMapper() {
-					@Override
-					public Object mapRow(ResultSet rs, int i) throws SQLException {
-						CmtTreeBean item = new CmtTreeBean();
-						item.setRoot_id(rs.getLong("cmt_root_id"));
-						item.setChild_id(rs.getLong("cmt_child_id"));
-						item.setVflag(rs.getInt("vflag"));
-						item.setMflag(rs.getInt("mflag"));
-						list.add(item);
-						return null;
-					}
-				});
-			}
-			offset += MAX_FETCH_SIZE;
-		}
-
-		System.out.println("get id timeCousume: " + (System.currentTimeMillis() - start));
-
-		return list;
 	}
 
 	private static String getState(Comment comment) {
@@ -1467,29 +231,12 @@ public class App
 		}
 	}
 
-	static Comment getComment(TableContainer tableContainer, SinaUserService sinaUserService, long id) {
-		TableChannel channel = tableContainer.getTableChannel("comment", "GET_CONTENT", id, id);
-		String sql = channel.getSql();
+	static Comment getComment(StorageProxy<byte[]> content2StorageProxy, long id) {
+		byte[] value = content2StorageProxy.get(id + ".ccp");
+		if (value != null)
+			return CommentPBUtil.parseFromPB(value);
 
-		Comment comment = (Comment)channel.getJdbcTemplate().query(sql, new Long[]{id}, new ResultSetExtractor(){
-			public Comment extractData(ResultSet rs) throws SQLException, DataAccessException {
-				if(rs.next()){
-					Comment comment = CommentPBUtil.parseFromPB(rs.getBytes("content"), true);
-					if(comment != null){
-						comment.id = rs.getLong("id");
-						SinaUser sinaUser = sinaUserService.getSinaUser(comment.getAuthorId());
-						comment.author = sinaUser;
-						Status status = getStatus(tableContainer, sinaUserService, comment.src_status_id_db, true);
-						comment.srcStatus = status;
-						if (comment.author != null && comment.srcStatus != null)
-							return comment;
-					}
-				}
-				return null;
-			}
-		});
-
-		return comment;
+		return null;
 	}
 
 	static Status getStatus(TableContainer tableContainer, SinaUserService sinaUserService, final long id, final boolean loadDeleted) {
@@ -1514,37 +261,6 @@ public class App
 		});
 
 		return status;
-	}
-
-	public static void testSwap () {
-		Integer a = 1;
-		Integer b = 2;
-		System.out.println("before swap: a=" + a + ", b=" + b);
-		swap(a, b);
-		System.out.println("before swap: a=" + a + ", b=" + b);
-
-		Integer c = 1;
-		Integer d = 1;
-		System.out.println(c==d);
-		System.out.println(c.equals(d));
-
-		Integer e = 128;
-		Integer f = 128;
-		System.out.println(e==f);
-		System.out.println(e.equals(f));
-	}
-
-	private static void swap (Integer num1, Integer num2) {
-		try {
-			Field field = Integer.class.getDeclaredField("value");
-			field.setAccessible(true);
-			int tmp = num1.intValue();
-			field.set(num1, num2);
-			field.set(num2, new Integer(tmp));
-			field.setInt(num2, tmp);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
 	}
 
 	private static void fileChannel() {
@@ -1593,10 +309,216 @@ public class App
 		return byteArrayKeys;
 	}
 
-	private static void processFile() {
+	public static ApacheHttpClient httpclient = new ApacheHttpClient(100, 1000, 1000, 1024 * 1024);
+
+	public static void testPost() {
+		String POST_URL = "http://10.77.96.56:9699/uve/service/comments_list?";
+		Map<String, String> paramMap = Maps.newHashMap();
+		paramMap.put("c", "android");
+		paramMap.put("ua", "HUAWEI-FRD-AL10__weibo__8.4.3__android__android7.0");
+		paramMap.put("wm", "3333_1001");
+		paramMap.put("from", "1084395010");
+		paramMap.put("lang", "zh_CN");
+		paramMap.put("appid", "6");
+		paramMap.put("attachment", "");
+		paramMap.put("feedtype", "0");
+		paramMap.put("increment", "");
+		paramMap.put("ip", "10.222.68.61");
+		paramMap.put("list_id", "");
+		paramMap.put("posid", "pos50753fa08810c");
+		paramMap.put("proxy_source", "3439264077");
+		paramMap.put("source", "3439264077");
+		paramMap.put("uid", "3002231187");
+		paramMap.put("blog_author_id", "1889377232");
+		paramMap.put("blue_v", "0");
+		paramMap.put("mid", "4232784643625730");
+		paramMap.put("content", "万人迷手撕腹黑女现场直击，谁说漂亮女生没智慧 http://t.cn/RutdgyM ​​​");
+		paramMap.put("org_content", "");
+		paramMap.put("unread_status", "20");
+		paramMap.put("refresh_times", "1");
+		paramMap.put("is_ad", "false");
+		paramMap.put("refreshId", "null");
+		try {
+			long totalTime = 0;
+			for (int i = 0; i <= 99; i++) {
+				long timeStart = System.currentTimeMillis();
+				String rt = httpclient.postAsync(UriUtils.encodeHttpUrl(POST_URL, "utf-8"), paramMap);
+				long timeEnd = System.currentTimeMillis();
+
+				System.out.println(rt);
+				totalTime += (timeEnd - timeStart);
+			}
+			System.out.println("post avg: " + totalTime/100);
+		} catch (Exception e) {
+			System.out.println("Whatever!");
+		}
+	}
+
+	public static void testGet() {
+		String GET_URL = "http://10.77.96.56:9699/uve/service/comments_list?max_id=0&c=android&ua=HUAWEI-FRD-AL10__weibo__8.4.3__android__android7.0&wm=3333_1001&from=1084395010&lang=zh_CN&appid=6&attachment=&feedtype=0&increment=&ip=10.222.68.61&list_id=&posid=pos50753fa08810c&proxy_source=3439264077&source=3439264077&uid=3002231187&blog_author_id=1889377232&blue_v=0&mid=4232784643625730&content=%E4%B8%87%E4%BA%BA%E8%BF%B7%E6%89%8B%E6%92%95%E8%85%B9%E9%BB%91%E5%A5%B3%E7%8E%B0%E5%9C%BA%E7%9B%B4%E5%87%BB%EF%BC%8C%E8%B0%81%E8%AF%B4%E6%BC%82%E4%BA%AE%E5%A5%B3%E7%94%9F%E6%B2%A1%E6%99%BA%E6%85%A7%20http://t.cn/RutdgyM%20%E2%80%8B%E2%80%8B%E2%80%8B&org_content=&unread_status=20&refresh_times=1&is_ad=false&refreshId=null";
+		try {
+			long totalTime = 0;
+			for (int i = 0; i <= 99; i++) {
+				long timeStart = System.currentTimeMillis();
+				String rt = httpclient.getAsync(UriUtils.encodeHttpUrl(GET_URL, "utf-8"), 1000L);
+				long timeEnd = System.currentTimeMillis();
+
+				System.out.println(rt);
+				totalTime += (timeEnd - timeStart);
+			}
+			System.out.println("get avg: " + totalTime/100);
+		} catch (Exception e) {
+			System.out.println("Whatever!");
+		}
+	}
+
+	private static void MCTest(int keys, int listLength) {
+		int keyNum = keys;
+		int size_const = 300;
+		int score_const = 1;
+		long statusId = 3683372550715671L;
+		long commentId = 4183372550715671L;
+		try {
+			while (keyNum-- > 0) { // 添加keyNum个key
+				int listSize = listLength;
+				String key = String.valueOf(statusId - keyNum) + ".hotf";
+				CommentHotFlowVector commentHotFlowVector = new CommentHotFlowVector();
+				commentHotFlowVector.metaList = Lists.newArrayList();
+				while (listSize-- > 0) {
+					long cid = (commentId - keyNum * size_const - listSize);
+					double score = StatusHotCommentUtil.getStoreScoreWithCid(score_const, cid);
+					CommentHotFlowMeta commentHotFlowMeta = new CommentHotFlowMeta(cid, score);
+					commentHotFlowVector.metaList.add(commentHotFlowMeta);
+				}
+				MCClient.setValue(key, commentHotFlowVector.toPb());
+			}
+
+			System.out.println(keys + "keys, " + listLength + " item perkey");
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	private static void getIndex(long id) {
+		getFI("CommentTree 486*：", 4861, id, 32, 1);
+		//getFI("CommentTimeline 492*：", 4921, id, 32, 1);
+		//getSI("CommentNewApproval 529*：", 5291, id, 32, 8);
+		//getRedisI("CommentHotFlow 20573 ~ 20604：", 20573, id, 1024, 32);
+	}
+
+	private static void getFI(String desc, int startPort, long id, int dbCount, int tableCount) {
+		System.out.println(desc + (" port:" + (startPort + ((ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) / tableCount) / 4))) + " database:" + (ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) / tableCount));
+	}
+
+	private static void getSI(String desc, int startPort, long id, int dbCount, int tableCount) {
+		System.out.println(desc + (" port:" + (startPort + ((ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) / tableCount) / 4))) + " database:" + (ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) / tableCount) + " table:" +  (ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) % tableCount));
+	}
+
+	private static void getRedisI(String desc, int startPort, long id, int hashGene, int tablePerDb) {
+		System.out.println(desc + (" port:" + (startPort + (HashUtil.getHash(id, hashGene, "crc32", "new") / tablePerDb))));
+	}
+
+	public static final String statusId2Url(long uid, long mid) {
+		if (uid <= 0 || !UuidHelper.isValidId(mid)) {
+			return null;
+		}
+
+		StringBuilder urlBuilder = new StringBuilder();
+		urlBuilder.append("http://weibo.com/").append(uid).append("/").append(Base62Parse.encode(mid));
+		return urlBuilder.toString();
+	}
+
+	/**
+	 *
+	 * @param IP
+	 * @return
+	 */
+	public static String GetAddressByIp(String IP){
+		String resout = "未获取到地区";
+		try{
+			String str = getJsonContent("http://ip.taobao.com/service/getIpInfo.php?ip="+IP);
+
+			// System.out.println(str);
+
+			JSONObject obj = JSONObject.fromObject(str);
+			JSONObject obj2 =  (JSONObject) obj.get("data");
+			String code = String.valueOf(obj.get("code"));
+			if(code.equals("0")){
+				resout = obj2.get("city")+ "-" +obj2.get("isp");
+			}else{
+				resout =  "未获取到地区";
+			}
+		}catch(Exception e){
+
+			e.printStackTrace();
+			resout = "获取IP地址异常："+e.getMessage();
+		}
+		return resout;
+
+	}
+
+	public static String getJsonContent(String urlStr)
+	{
+		try
+		{// 获取HttpURLConnection连接对象
+			URL url = new URL(urlStr);
+			HttpURLConnection httpConn = (HttpURLConnection) url
+					.openConnection();
+			// 设置连接属性
+			httpConn.setConnectTimeout(3000);
+			httpConn.setDoInput(true);
+			httpConn.setRequestMethod("GET");
+			// 获取相应码
+			int respCode = httpConn.getResponseCode();
+			if (respCode == 200)
+			{
+				return ConvertStream2Json(httpConn.getInputStream());
+			}
+		}
+		catch (MalformedURLException e)
+		{
+			e.printStackTrace();
+		}
+		catch (IOException e)
+		{
+			e.printStackTrace();
+		}
+		return "";
+	}
+
+
+	private static String ConvertStream2Json(InputStream inputStream)
+	{
+		String jsonStr = "";
+		// ByteArrayOutputStream相当于内存输出流
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		byte[] buffer = new byte[1024];
+		int len = 0;
+		// 将输入流转移到内存输出流中
+		try
+		{
+			while ((len = inputStream.read(buffer, 0, buffer.length)) != -1)
+			{
+				out.write(buffer, 0, len);
+			}
+			// 将内存流转换为字符串
+			jsonStr = new String(out.toByteArray());
+		}
+		catch (IOException e)
+		{
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		return jsonStr;
+	}
+}
+
+class ProcessFile {
+	private static void process() {
 		List<String> logList = Lists.newArrayListWithCapacity(1800000);
 		try {
-			BufferedReader reader = new BufferedReader(new FileReader(new File(FILE_READ_PATH)));
+			BufferedReader reader = new BufferedReader(new FileReader(new File("")));
 			String line = null;
 			while ((line = reader.readLine()) != null) {
 				if (StringUtils.isBlank(line)) {
@@ -1751,69 +673,6 @@ public class App
 		}
 	}
 
-	public static ApacheHttpClient httpclient = new ApacheHttpClient(100, 1000, 1000, 1024 * 1024);
-
-	public static void testPost() {
-		String POST_URL = "http://10.77.96.56:9699/uve/service/comments_list?";
-		Map<String, String> paramMap = Maps.newHashMap();
-		paramMap.put("c", "android");
-		paramMap.put("ua", "HUAWEI-FRD-AL10__weibo__8.4.3__android__android7.0");
-		paramMap.put("wm", "3333_1001");
-		paramMap.put("from", "1084395010");
-		paramMap.put("lang", "zh_CN");
-		paramMap.put("appid", "6");
-		paramMap.put("attachment", "");
-		paramMap.put("feedtype", "0");
-		paramMap.put("increment", "");
-		paramMap.put("ip", "10.222.68.61");
-		paramMap.put("list_id", "");
-		paramMap.put("posid", "pos50753fa08810c");
-		paramMap.put("proxy_source", "3439264077");
-		paramMap.put("source", "3439264077");
-		paramMap.put("uid", "3002231187");
-		paramMap.put("blog_author_id", "1889377232");
-		paramMap.put("blue_v", "0");
-		paramMap.put("mid", "4232784643625730");
-		paramMap.put("content", "万人迷手撕腹黑女现场直击，谁说漂亮女生没智慧 http://t.cn/RutdgyM ​​​");
-		paramMap.put("org_content", "");
-		paramMap.put("unread_status", "20");
-		paramMap.put("refresh_times", "1");
-		paramMap.put("is_ad", "false");
-		paramMap.put("refreshId", "null");
-		try {
-			long totalTime = 0;
-			for (int i = 0; i <= 99; i++) {
-				long timeStart = System.currentTimeMillis();
-				String rt = httpclient.postAsync(UriUtils.encodeHttpUrl(POST_URL, "utf-8"), paramMap);
-				long timeEnd = System.currentTimeMillis();
-
-				System.out.println(rt);
-				totalTime += (timeEnd - timeStart);
-			}
-			System.out.println("post avg: " + totalTime/100);
-		} catch (Exception e) {
-			System.out.println("Whatever!");
-		}
-	}
-
-	public static void testGet() {
-		String GET_URL = "http://10.77.96.56:9699/uve/service/comments_list?max_id=0&c=android&ua=HUAWEI-FRD-AL10__weibo__8.4.3__android__android7.0&wm=3333_1001&from=1084395010&lang=zh_CN&appid=6&attachment=&feedtype=0&increment=&ip=10.222.68.61&list_id=&posid=pos50753fa08810c&proxy_source=3439264077&source=3439264077&uid=3002231187&blog_author_id=1889377232&blue_v=0&mid=4232784643625730&content=%E4%B8%87%E4%BA%BA%E8%BF%B7%E6%89%8B%E6%92%95%E8%85%B9%E9%BB%91%E5%A5%B3%E7%8E%B0%E5%9C%BA%E7%9B%B4%E5%87%BB%EF%BC%8C%E8%B0%81%E8%AF%B4%E6%BC%82%E4%BA%AE%E5%A5%B3%E7%94%9F%E6%B2%A1%E6%99%BA%E6%85%A7%20http://t.cn/RutdgyM%20%E2%80%8B%E2%80%8B%E2%80%8B&org_content=&unread_status=20&refresh_times=1&is_ad=false&refreshId=null";
-		try {
-			long totalTime = 0;
-			for (int i = 0; i <= 99; i++) {
-				long timeStart = System.currentTimeMillis();
-				String rt = httpclient.getAsync(UriUtils.encodeHttpUrl(GET_URL, "utf-8"), 1000L);
-				long timeEnd = System.currentTimeMillis();
-
-				System.out.println(rt);
-				totalTime += (timeEnd - timeStart);
-			}
-			System.out.println("get avg: " + totalTime/100);
-		} catch (Exception e) {
-			System.out.println("Whatever!");
-		}
-	}
-
 	public static List<File> getFileList(String strPath, List<File> fileList) {
 		File dir = new File(strPath);
 		File[] files = dir.listFiles();
@@ -1939,137 +798,407 @@ public class App
 		fileList = getFileList(strPath, fileList);
 		analyseFile(fileList);
 	}
+}
 
-	private static void MCTest(int keys, int listLength) {
-		int keyNum = keys;
-		int size_const = 300;
-		int score_const = 1;
-		long statusId = 3683372550715671L;
-		long commentId = 4183372550715671L;
-		try {
-			while (keyNum-- > 0) { // 添加keyNum个key
-				int listSize = listLength;
-				String key = String.valueOf(statusId - keyNum) + ".hotf";
-				CommentHotFlowVector commentHotFlowVector = new CommentHotFlowVector();
-				commentHotFlowVector.metaList = Lists.newArrayList();
-				while (listSize-- > 0) {
-					long cid = (commentId - keyNum * size_const - listSize);
-					double score = StatusHotCommentUtil.getStoreScoreWithCid(score_const, cid);
-					CommentHotFlowMeta commentHotFlowMeta = new CommentHotFlowMeta(cid, score);
-					commentHotFlowVector.metaList.add(commentHotFlowMeta);
+class ExportCommentList {
+	public static ThreadLocal<Map<Long, Status>> statusMapLocal = new ThreadLocal<>();
+	public static ThreadLocal<TableContainer> tableContainerLocal = new ThreadLocal<>();
+	public static ThreadLocal<SinaUserService> sinaUserServiceLocal = new ThreadLocal<>();
+
+	void commentListExport() {
+		List<String> xmlList = Lists.newArrayList();
+		xmlList.add("file:/Users/erming/platform/idea/weibo-api-core/src/main/resources/spring/configloader.xml");
+		xmlList.add("file:/Users/erming/platform/idea/api-engine/src/spring/comment-hot-flow.xml");
+		xmlList.add("file:/Users/erming/platform/idea/api-comment/src/spring/service/status-count.xml");
+		xmlList.add("file:/Users/erming/platform/idea/api-comment/src/spring/redis/comment-tree-floor-num.xml");
+		xmlList.add("file:/Users/erming/platform/idea/web_v4/src/spring/cache-service.xml");
+		// xmlList.add("file:/Users/erming/platform/idea/api-comment/src/spring/service/status-repost.xml");
+		// xmlList.add("file:/Users/erming/platform/idea/web_v4/src/spring/graph_client.xml");
+		// xmlList.add("file:/Users/erming/platform/idea/api-comment/src/spring/service/status-count.xml");
+
+		xmlList.add("classpath:rpc.xml");
+		xmlList.add("classpath:mysql.xml");
+		xmlList.add("classpath:proxy.xml");
+		xmlList.add("classpath:mc.xml");
+		ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext(ArrayUtil.toStringArr(xmlList));
+		context.start();
+		StorageProxy<byte[]> content2StorageProxy = (StorageProxy<byte[]>) context.getBean("content2StorageProxy");
+		SinaUserService sinaUserService = (SinaUserService) context.getBean("sinaUserService");
+		TableContainer tableContainer = (TableContainer) context.getBean("tableContainer");
+		CommentHotFlowRedisService commentHotFlowRedisService = (CommentHotFlowRedisService) context.getBean("commentHotFlowRedisService");
+		JedisMSServer commentTreeFloorNumStorage = (JedisMSServer) context.getBean("commentTreeFloorNumStorage");
+		StatusCountService statusCountService = (StatusCountService) context.getBean("statusCountService");
+
+		Date date = new Date(1533052800000L);
+		List<IdFlag> statusIdList = getTimelineAllIncludeNotShowWithFlag(tableContainer, 1223540840L, date);
+
+		Map<Long, Status> statusMap = Maps.newHashMap();
+		List<Status> statusList = Lists.newArrayList();
+		for (IdFlag idFlag : statusIdList) {
+			Status status = App.getStatus(tableContainer, sinaUserService, idFlag.getId(), true);
+			statusList.add(status);
+			statusMap.put(idFlag.getId(), status);
+		}
+
+		statusMapLocal.set(statusMap);
+		tableContainerLocal.set(tableContainer);
+		sinaUserServiceLocal.set(sinaUserService);
+
+		Map<Long, List<Comment>> statusHotFlowMap = Maps.newHashMap();
+		Map<Long, List<Comment>> rootHotChildMap = Maps.newHashMap();
+		Map<Long, List<Comment>> statusTimeFlowMap = Maps.newHashMap();
+		Map<Long, List<Comment>> rootTimeChildMap = Maps.newHashMap();
+		for (Status status : statusList) {
+			statusHotFlowMap.put(status.id, getCommentHotflow(tableContainer, sinaUserService, status.id, status, commentTreeFloorNumStorage, statusCountService, commentHotFlowRedisService, content2StorageProxy));
+			statusTimeFlowMap.put(status.id, getCommentTreeList(tableContainer, sinaUserService, true, false, status.id, 2000, date, content2StorageProxy));
+		}
+
+		for (List<Comment> commentList : statusHotFlowMap.values())
+			for (Comment comment : commentList)
+				if (comment != null)
+					rootHotChildMap.put(comment.id, getCommentHotflow(tableContainer, sinaUserService, comment.id, comment.srcStatus, commentTreeFloorNumStorage, statusCountService, commentHotFlowRedisService, content2StorageProxy));
+
+		for (List<Comment> commentList : statusTimeFlowMap.values())
+			for (Comment comment : commentList)
+				if (comment != null)
+					rootTimeChildMap.put(comment.id, getCommentTreeList(tableContainer, sinaUserService, false, false, comment.id, 2000, date, content2StorageProxy));
+
+		ExportExcel.exportExcel(statusList, statusHotFlowMap, rootHotChildMap, statusTimeFlowMap, rootTimeChildMap);
+
+		System.out.println("\ndone!");
+	}
+
+	List<Comment> getCommentHotflow(TableContainer tableContainer, SinaUserService sinaUserService, long id, Status status, JedisMSServer commentTreeFloorNumStorage, StatusCountService statusCountService, CommentHotFlowRedisService commentHotFlowRedisService, StorageProxy<byte[]> storageProxy) {
+		Map<Long, Integer> statusFloorMap = Maps.newHashMap();
+		Map<Long, Integer> childTotalNumberMap = statusCountService.gets(new long[] {id}, StatusCountService.Type.COMMENT);
+		CommentHotFlowContext commentHotFlowContext = new CommentHotFlowContext();
+
+		StringBuffer sb = new StringBuffer();
+		sb.append(String.valueOf(id)).append(".count");
+		String floorNum = commentTreeFloorNumStorage.get(sb.toString());
+		statusFloorMap.put(id, (int)(floorNum == null ? 0 : Long.parseLong(floorNum)));
+
+		commentHotFlowContext.setSrcStatusId(status.id);
+		commentHotFlowContext.setStatusFloorMap(statusFloorMap);
+		commentHotFlowContext.setChildTotalNumberMap(childTotalNumberMap);
+		commentHotFlowContext.setNeedApprovalComment(ApprovalCommentUtil.needApprovalComment(status));
+		commentHotFlowContext.setNeedNewApprovalComment(ApprovalCommentUtil.needNewApprovalComment(status));
+		List<CommentHotFlowMeta> commentHotFlowMetas = commentHotFlowRedisService.getWithRevRange(id, 0, 300, commentHotFlowContext);
+
+		List<Comment> commentList = Lists.newArrayList();
+		for (CommentHotFlowMeta commentHotFlowMeta : commentHotFlowMetas)
+			commentList.add(App.getComment(storageProxy, commentHotFlowMeta.getCid()));
+
+		return commentList;
+	}
+
+	List<Comment> getCommentTreeList(TableContainer tableContainer, SinaUserService sinaUserService, boolean isMid, boolean isAsc, long id, int count, Date createdDate, StorageProxy<byte[]> storageProxy) {
+		String tableName = isMid ? "cmt_tree_mid_rootid" : "cmt_tree_rootid_childid";
+		String sqlName = isMid ?
+				isAsc ? "GET_ROOT_COMMENT_ASC" : "GET_ROOT_COMMENT_DESC":
+				isAsc ? "GET_CHILD_COMMENT_ASC" : "GET_CHILD_COMMENT_DESC";
+		TableChannel tableChannel = tableContainer.getTableChannel(tableName, sqlName, id, createdDate);
+		String sql = tableChannel.getSql();
+		System.out.println(sql);
+
+		List<CmtTreeBean> list = Lists.newArrayList();
+		if (isMid) {
+			tableChannel.getJdbcTemplate().query(sql, new Object[] { id, count }, new RowMapper() {
+				@Override
+				public Object mapRow(ResultSet rs, int i) throws SQLException {
+					CmtTreeBean result = new CmtTreeBean();
+					result.setRoot_id(rs.getLong("mid"));
+					result.setChild_id(rs.getLong("cmt_root_id"));
+					result.setVflag(rs.getInt("vflag"));
+					result.setMflag(rs.getInt("mflag"));
+					list.add(result);
+					return null;
 				}
-				MCClient.setValue(key, commentHotFlowVector.toPb());
+			});
+		} else {
+			tableChannel.getJdbcTemplate().query(sql, new Object[] { id, count }, new RowMapper() {
+				@Override
+				public Object mapRow(ResultSet rs, int i) throws SQLException {
+					CmtTreeBean result = new CmtTreeBean();
+					result.setRoot_id(rs.getLong("cmt_root_id"));
+					result.setChild_id(rs.getLong("cmt_child_id"));
+					result.setVflag(rs.getInt("vflag"));
+					result.setMflag(rs.getInt("mflag"));
+					list.add(result);
+					return null;
+				}
+			});
+		}
+
+		List<Comment> commentList = Lists.newArrayList();
+		for (CmtTreeBean cmtTreeBean : list)
+			commentList.add(App.getComment(storageProxy, cmtTreeBean.getChild_id()));
+
+		return commentList;
+	}
+
+	List<IdFlag> getTimelineAllIncludeNotShowWithFlag(final TableContainer tableContainer, final long uid, Date time) {
+		final List<IdFlag> idFlags = Lists.newArrayList();
+
+		TableChannel channel =
+				tableContainer.getTableChannel("timeline", "GET_TIMELINE_ALL_IN_MONTH_WITH_FLAG_ALL", uid,
+						time);
+		JdbcTemplate template = channel.getJdbcTemplate();
+		String sql = channel.getSql();
+
+		template.query(sql, new Object[] {uid}, new RowMapper() {
+			public Object mapRow(ResultSet rs, int id) throws SQLException {
+				long statusId = rs.getLong("status_id");
+
+				long flag = getOldFlagFromTimeline(uid, rs);
+
+				idFlags.add(new IdFlag(statusId, flag));
+
+				return null;
 			}
+		});
 
-			System.out.println(keys + "keys, " + listLength + " item perkey");
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+		return idFlags;
+	}
+
+	long getOldFlagFromTimeline(long uid, ResultSet rs) throws SQLException {
+		byte vflag = rs.getByte("vflag");
+		int fflag = rs.getInt("fflag");
+		int source = getSourceValue(uid, rs.getLong("source"));
+
+		return new StatusFlag(vflag, fflag, source).parserToOldFlag();
+	}
+
+	int getSourceValue(long uid, long source) {
+		if (source > Integer.MAX_VALUE) {
+			ApiLogger.warn(new StringBuilder(128).append("invalid source, uid=").append(uid)
+					.append(" source=").append(source));
+
+			return 1;
 		}
+
+		return (int) source;
 	}
+}
 
-	private static void getIndex(long id) {
-		getFI("CommentTree 486*：", 4861, id, 32, 1);
-		//getFI("CommentTimeline 492*：", 4921, id, 32, 1);
-		//getSI("CommentNewApproval 529*：", 5291, id, 32, 8);
-		//getRedisI("CommentHotFlow 20573 ~ 20604：", 20573, id, 1024, 32);
-	}
+class ExportExcel {
+	public static void exportExcel(List<Status> statusList, Map<Long, List<Comment>> statusHotFlowMap, Map<Long, List<Comment>> rootHotChildMap, Map<Long, List<Comment>> statusTimeFlowMap, Map<Long, List<Comment>> rootTimeChildMap) {
+		try {
+			System.out.println("start excel");
 
-	private static void getFI(String desc, int startPort, long id, int dbCount, int tableCount) {
-		System.out.println(desc + (" port:" + (startPort + ((ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) / tableCount) / 4))) + " database:" + (ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) / tableCount));
-	}
+			SimpleDateFormat dateFormater = new SimpleDateFormat("yyyy:MM:dd HH:mm:ss");
+			for(Status status : statusList) {
+				if (status == null)
+					continue;
 
-	private static void getSI(String desc, int startPort, long id, int dbCount, int tableCount) {
-		System.out.println(desc + (" port:" + (startPort + ((ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) / tableCount) / 4))) + " database:" + (ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) / tableCount) + " table:" +  (ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) % tableCount));
-	}
+				HSSFWorkbook workbook = new HSSFWorkbook();
+				HSSFCellStyle sheetStyle = getHssfSheetCellStyle(workbook);
+				HSSFFont headfont = getHssfHeartFont(workbook);
+				HSSFCellStyle headstyle = getHssfHeadCellStyle(workbook, headfont);
+				HSSFFont font = getHssfFont(workbook);
+				HSSFCellStyle style = getHssfCellStyle(workbook, font);
+				HSSFCellStyle centerstyle = getHssfCenterCellStyle(workbook, font);
 
-	private static void getRedisI(String desc, int startPort, long id, int hashGene, int tablePerDb) {
-		System.out.println(desc + (" port:" + (startPort + (HashUtil.getHash(id, hashGene, "crc32", "new") / tablePerDb))));
-	}
+				System.out.println("[Excel export]: " + status.id);
+				exportFlow("热门", statusHotFlowMap, rootHotChildMap, dateFormater, status, workbook, sheetStyle, headstyle, style, centerstyle);
+				exportFlow("时间", statusTimeFlowMap, rootTimeChildMap, dateFormater, status, workbook, sheetStyle, headstyle, style, centerstyle);
 
-	/**
-	 *
-	 * @param IP
-	 * @return
-	 */
-	public static String GetAddressByIp(String IP){
-		String resout = "未获取到地区";
-		try{
-			String str = getJsonContent("http://ip.taobao.com/service/getIpInfo.php?ip="+IP);
-
-			// System.out.println(str);
-
-			JSONObject obj = JSONObject.fromObject(str);
-			JSONObject obj2 =  (JSONObject) obj.get("data");
-			String code = String.valueOf(obj.get("code"));
-			if(code.equals("0")){
-				resout = obj2.get("city")+ "-" +obj2.get("isp");
-			}else{
-				resout =  "未获取到地区";
+				String filename = "/Users/erming/Desktop/ids/" + status.id + ".xls";//设置下载时客户端Excel的名称
+				workbook.write(new FileOutputStream(new File(filename)));
 			}
-		}catch(Exception e){
+		} catch (Exception ex) {
 
-			e.printStackTrace();
-			resout = "获取IP地址异常："+e.getMessage();
 		}
-		return resout;
-
 	}
 
-	public static String getJsonContent(String urlStr)
-	{
-		try
-		{// 获取HttpURLConnection连接对象
-			URL url = new URL(urlStr);
-			HttpURLConnection httpConn = (HttpURLConnection) url
-					.openConnection();
-			// 设置连接属性
-			httpConn.setConnectTimeout(3000);
-			httpConn.setDoInput(true);
-			httpConn.setRequestMethod("GET");
-			// 获取相应码
-			int respCode = httpConn.getResponseCode();
-			if (respCode == 200)
-			{
-				return ConvertStream2Json(httpConn.getInputStream());
-			}
-		}
-		catch (MalformedURLException e)
-		{
-			e.printStackTrace();
-		}
-		catch (IOException e)
-		{
-			e.printStackTrace();
-		}
-		return "";
+	private static HSSFCellStyle getHssfSheetCellStyle(HSSFWorkbook workbook) {
+		HSSFCellStyle sheetStyle = workbook.createCellStyle();
+		sheetStyle.setFillBackgroundColor(HSSFColor.GREY_25_PERCENT.index);
+		sheetStyle.setFillForegroundColor(HSSFColor.GREY_25_PERCENT.index);
+		return sheetStyle;
 	}
 
-
-	private static String ConvertStream2Json(InputStream inputStream)
-	{
-		String jsonStr = "";
-		// ByteArrayOutputStream相当于内存输出流
-		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		byte[] buffer = new byte[1024];
-		int len = 0;
-		// 将输入流转移到内存输出流中
-		try
-		{
-			while ((len = inputStream.read(buffer, 0, buffer.length)) != -1)
-			{
-				out.write(buffer, 0, len);
-			}
-			// 将内存流转换为字符串
-			jsonStr = new String(out.toByteArray());
-		}
-		catch (IOException e)
-		{
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return jsonStr;
+	private static HSSFFont getHssfHeartFont(HSSFWorkbook workbook) {
+		HSSFFont headfont = workbook.createFont();
+		headfont.setFontName("黑体");
+		headfont.setFontHeightInPoints((short) 22);// 字体大小
+		headfont.setBoldweight(HSSFFont.BOLDWEIGHT_BOLD);// 加粗
+		return headfont;
 	}
+
+	private static HSSFCellStyle getHssfHeadCellStyle(HSSFWorkbook workbook, HSSFFont headfont) {
+		HSSFCellStyle headstyle = workbook.createCellStyle();
+		headstyle.setFont(headfont);
+		headstyle.setAlignment(HSSFCellStyle.ALIGN_CENTER);// 左右居中
+		headstyle.setVerticalAlignment(HSSFCellStyle.VERTICAL_CENTER);// 上下居中
+		headstyle.setLocked(true);
+		return headstyle;
+	}
+
+	private static HSSFCellStyle getHssfCenterCellStyle(HSSFWorkbook workbook, HSSFFont font) {
+		HSSFCellStyle centerstyle = workbook.createCellStyle();
+		centerstyle.setFont(font);
+		centerstyle.setAlignment(HSSFCellStyle.ALIGN_CENTER);// 左右居中
+		centerstyle.setVerticalAlignment(HSSFCellStyle.VERTICAL_CENTER);// 上下居中
+		centerstyle.setWrapText(true);
+		centerstyle.setLeftBorderColor(HSSFColor.BLACK.index);
+		centerstyle.setBorderLeft((short) 1);
+		centerstyle.setRightBorderColor(HSSFColor.BLACK.index);
+		centerstyle.setBorderRight((short) 1);
+		centerstyle.setBorderBottom(HSSFCellStyle.BORDER_THIN); // 设置单元格的边框为粗体
+		centerstyle.setBottomBorderColor(HSSFColor.BLACK.index); // 设置单元格的边框颜色．
+		centerstyle.setFillForegroundColor(HSSFColor.WHITE.index);// 设置单元格的背景颜色．
+		return centerstyle;
+	}
+
+	private static HSSFFont getHssfFont(HSSFWorkbook workbook) {
+		HSSFFont font = workbook.createFont();
+		font.setFontName("宋体");
+		font.setFontHeightInPoints((short) 12);
+		return font;
+	}
+
+	private static HSSFCellStyle getHssfCellStyle(HSSFWorkbook workbook, HSSFFont font) {
+		HSSFCellStyle style = workbook.createCellStyle();
+		style.setFont(font);
+		style.setAlignment(HSSFCellStyle.ALIGN_LEFT);// 左右居中
+		style.setVerticalAlignment(HSSFCellStyle.VERTICAL_TOP);// 上下居中
+		style.setWrapText(true);
+		style.setLeftBorderColor(HSSFColor.BLACK.index);
+		style.setBorderLeft((short) 1);
+		style.setRightBorderColor(HSSFColor.BLACK.index);
+		style.setBorderRight((short) 1);
+		style.setBorderBottom(HSSFCellStyle.BORDER_THIN); // 设置单元格的边框为粗体
+		style.setBottomBorderColor(HSSFColor.BLACK.index); // 设置单元格的边框颜色．
+		style.setFillForegroundColor(HSSFColor.WHITE.index);// 设置单元格的背景颜色
+		return style;
+	}
+
+	private static void exportFlow(String type, Map<Long, List<Comment>> statusHotFlowMap, Map<Long, List<Comment>> rootHotChildMap, SimpleDateFormat dateFormater, Status status, HSSFWorkbook workbook, HSSFCellStyle sheetStyle, HSSFCellStyle headstyle, HSSFCellStyle style, HSSFCellStyle centerstyle) {
+		int rowNum = 0;
+		String link = App.statusId2Url(status.getAuthorId(), status.id);
+
+		HSSFSheet sheet = workbook.createSheet(String.valueOf(type));
+		for (int i = 0; i <= 4; i++) { sheet.setDefaultColumnStyle((short) i, sheetStyle); }
+		sheet.setColumnWidth(0, 6000);
+		sheet.setColumnWidth(1, 6000);
+		sheet.setColumnWidth(2, 6000);
+		sheet.setColumnWidth(3, 6000);
+		sheet.setColumnWidth(4, 6000);
+		sheet.setColumnWidth(5, 6000);
+
+		HSSFRow row = sheet.createRow(rowNum);
+		row.setHeight((short) 800);
+		HSSFCell cell = row.createCell(0);
+		cell.setCellType(HSSFCell.CELL_TYPE_FORMULA);
+		cell.setCellFormula("HYPERLINK(\"" + link + "\",\""+ link +"\")");
+		cell.setCellStyle(headstyle);
+		sheet.addMergedRegion(new CellRangeAddress(rowNum,rowNum,0,4));
+
+		row = sheet.createRow(++rowNum);
+		cell = row.createCell(0);
+		cell.setCellValue("微博作者uid");
+		cell.setCellStyle(style);
+		cell = row.createCell(1);
+		cell.setCellValue("微博作者昵称");
+		cell.setCellStyle(style);
+		cell = row.createCell(2);
+		cell.setCellValue("微博内容");
+		cell.setCellStyle(style);
+		cell = row.createCell(3);
+		cell.setCellValue("发表时间");
+		cell.setCellStyle(style);
+		cell = row.createCell(4);
+		cell.setCellValue("微博状态");
+		cell.setCellStyle(style);
+
+		setRowText(sheet, ++rowNum, style, status, dateFormater);
+
+		row = sheet.createRow(++rowNum);
+		row = sheet.createRow(++rowNum);
+		cell = row.createCell(0);
+		cell.setCellValue("评论列表");
+		cell.setCellStyle(centerstyle);
+		sheet.addMergedRegion(new CellRangeAddress(rowNum,rowNum,0,5));
+
+		row = sheet.createRow(++rowNum);
+		cell = row.createCell(0);
+		cell.setCellValue("评论作者uid");
+		cell.setCellStyle(style);
+		cell = row.createCell(1);
+		cell.setCellValue("评论作者昵称");
+		cell.setCellStyle(style);
+		cell = row.createCell(2);
+		cell.setCellValue("评论内容");
+		cell.setCellStyle(style);
+		cell = row.createCell(3);
+		cell.setCellValue("评论时间");
+		cell.setCellStyle(style);
+		cell = row.createCell(4);
+		cell.setCellValue("一二级");
+		cell.setCellStyle(style);
+		cell = row.createCell(5);
+		cell.setCellValue("评论状态");
+		cell.setCellStyle(style);
+
+		if (MapUtils.isNotEmpty(statusHotFlowMap)) {
+			List<Comment> rootComments = statusHotFlowMap.get(status.id);
+			if (CollectionUtils.isNotEmpty(rootComments))
+				for (Comment rootComment : rootComments) {
+					setRowText(sheet, ++rowNum, style, rootComment, dateFormater);
+					if (MapUtils.isNotEmpty(rootHotChildMap)) {
+						List<Comment> childComments = rootHotChildMap.get(rootComment.id);
+						if (CollectionUtils.isNotEmpty(childComments))
+							for (Comment childComment : childComments)
+								setRowText(sheet, ++rowNum, style, childComment, dateFormater);
+					}
+					sheet.createRow(++rowNum);
+				}
+		}
+	}
+
+	static void setRowText(HSSFSheet sheet, int rowNum, HSSFCellStyle style, Status status, SimpleDateFormat dateFormater) {
+		HSSFRow row = sheet.createRow(rowNum);
+		row.setHeight((short) 800);
+		HSSFCell cell = row.createCell(0);
+		cell.setCellValue(status.getAuthorId());
+		cell.setCellStyle(style);
+		cell = row.createCell(1);
+		cell.setCellValue(status.author != null ? status.author.screen_name : String.valueOf(status.getAuthorId()));
+		cell.setCellStyle(style);
+		cell = row.createCell(2);
+		cell.setCellValue(status.text);
+		cell.setCellStyle(style);
+		cell = row.createCell(3);
+		cell.setCellValue(dateFormater.format(status.created_at));
+		cell.setCellStyle(style);
+		cell = row.createCell(4);
+		cell.setCellValue(State.mflagMeanMap.get((int) status.state) != null ? State.mflagMeanMap.get((int) status.state) : "默认");
+		cell.setCellStyle(style);
+	}
+
+	static void setRowText(HSSFSheet sheet, int rowNum, HSSFCellStyle style, Comment comment, SimpleDateFormat dateFormater) {
+		HSSFRow row = sheet.createRow(rowNum);
+		HSSFCell cell = row.createCell(0);
+		cell.setCellValue(comment.uid_db);
+		cell.setCellStyle(style);
+		cell = row.createCell(1);
+		cell.setCellValue(comment.author != null ? comment.author.screen_name : "author");
+		cell.setCellStyle(style);
+		cell = row.createCell(2);
+		cell.setCellValue(comment.text);
+		cell.setCellStyle(style);
+		cell = row.createCell(3);
+		cell.setCellValue(dateFormater.format(comment.created_at));
+		cell.setCellStyle(style);
+		cell = row.createCell(4);
+		cell.setCellValue(CommentsUtil.isOriginRootComment(comment) ? "一" : "二");
+		cell.setCellStyle(style);
+		cell = row.createCell(5);
+		cell.setCellValue(State.mflagMeanMap.get((int) comment.state) != null ? State.mflagMeanMap.get((int) comment.state) : "默认");
+		cell.setCellStyle(style);
+	}
+
 }
 
 class BymeMeta {
@@ -2088,3 +1217,56 @@ class StatusMeta {
 	public long uid;
 }
 
+class State {
+	public static Map<Integer, String> mflagMeanMap = Maps.newHashMap();
+	static {
+		mflagMeanMap.put(-1, "禁止发表");
+		mflagMeanMap.put(98, "公开可见");
+		mflagMeanMap.put(0, "未审核");
+		mflagMeanMap.put(1, "已通过");
+		mflagMeanMap.put(2, "已隐藏搜索");
+		mflagMeanMap.put(3, "已设私密");
+		mflagMeanMap.put(4, "先审后发");
+		mflagMeanMap.put(5, "已删除");
+		mflagMeanMap.put(6, "已删转发");
+		mflagMeanMap.put(7, "自己删除");
+		mflagMeanMap.put(8, "封杀删除");
+		mflagMeanMap.put(9, "删除根");
+		mflagMeanMap.put(10, "删除单条");
+		mflagMeanMap.put(11, "自动设私");
+		mflagMeanMap.put(12, "自动禁止搜索");
+		mflagMeanMap.put(13, "禁止feed");
+		mflagMeanMap.put(14, "自动禁止feed");
+		mflagMeanMap.put(15, "自动广告私");
+		mflagMeanMap.put(16, "海外微博自动私");
+		mflagMeanMap.put(17, "海外微博私");
+		mflagMeanMap.put(18, "海外微博自动隐");
+		mflagMeanMap.put(19, "海外微博隐");
+		mflagMeanMap.put(20, "微博发布限制，仅自己可见");
+		mflagMeanMap.put(21, "广告行为先审后发");
+		mflagMeanMap.put(22, "反垃圾止(禁止feed)");
+		mflagMeanMap.put(23, "反垃圾自动止(禁自动止feed)");
+		mflagMeanMap.put(24, "微博、评论不上榜");
+		mflagMeanMap.put(25, "用户好友圈定向");
+		mflagMeanMap.put(26, "审核好友圈定向");
+		mflagMeanMap.put(27, "审核自动好友圈定向");
+		mflagMeanMap.put(28, "评论人身攻击识别设私");
+		mflagMeanMap.put(29, "被政府删除");
+		mflagMeanMap.put(30, "被政府设私");
+		mflagMeanMap.put(31, "被政府设好友圈");
+		mflagMeanMap.put(32, "被投诉删除");
+		mflagMeanMap.put(33, "被投诉设私");
+		mflagMeanMap.put(34, "被投诉设好友圈");
+		mflagMeanMap.put(35, "被垂直业务设私");
+		mflagMeanMap.put(36, "被平台自动设私");
+		mflagMeanMap.put(37, "评论审核通过");
+		mflagMeanMap.put(38, "评论审核不通过");
+		mflagMeanMap.put(39, "博主自己发的评论--仅供蓝V媒体用户审核评论时使用");
+		mflagMeanMap.put(40, "反垃圾评论点赞有概率禁止评论上热榜");
+		mflagMeanMap.put(41, "恶意导流人工私");
+		mflagMeanMap.put(42, "恶意导流自动私");
+		mflagMeanMap.put(43, "反垃圾自动隐");
+		mflagMeanMap.put(62, "免费问答的锁定态");
+		mflagMeanMap.put(63, "问答私");
+	}
+}

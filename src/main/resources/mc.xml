@@ -6,9 +6,35 @@
         http://www.springframework.org/schema/beans/spring-beans.xsd
         http://api.weibo.com/schema/weibo http://api.weibo.com/schema/weibo.xsd">
 
-    <weibo:mc id="memCache" serverPort="${base.memcache}" strategy="normal_mc" primitiveAsString="true"></weibo:mc>
-
-    <bean id="mblogAuthService" class="com.weibo.api.core.service.MblogAuthServiceImpl" autowire="byName">
-        <property name="tokenCache" ref="memCache"></property>
+    <bean id="content2MemCache_old" class="cn.sina.api.data.storage.cache.MemCacheStorage">
+        <property name="cacheClientL1">
+            <weibo:mclist serverPorts="${comment.content2.mc.masterL1}" strategy="normal_mc">
+                <property name="tryServer" value="${comment.content2.mc.tryServer}"></property>
+            </weibo:mclist>
+        </property>
+        <property name="cacheClientMaster">
+            <weibo:mc serverPort="${comment.content2.mc.master}" strategy="normal_mc">
+                <property name="tryServer" value="${comment.content2.mc.tryServer}"></property>
+            </weibo:mc>
+        </property>
+        <property name="cacheClientSlave">
+            <weibo:mc serverPort="${comment.content2.mc.slave}" strategy="normal_mc">
+                <property name="tryServer" value="${comment.content2.mc.tryServer}"></property>
+            </weibo:mc>
+        </property>
+        <property name="cacheClientSlaveL1">
+            <weibo:mclist serverPorts="${comment.content2.mc.slaveL1}" strategy="normal_mc">
+                <property name="tryServer" value="${comment.content2.mc.tryServer}"></property>
+            </weibo:mclist>
+        </property>
+        <property name="updateSlaveL1" value="${comment.content2.mc.updateSlaveL1}"/>
+        <property name="expire" value="21600"></property>	<!-- minutes -->
     </bean>
+
+    <weibo:cstemplate id="content2MemCache_new" registry="vintageFeedCacheService" recovery="feedCacheServiceRecoveryConfigNotifer"
+                      expire="21600" namespace="comment.content2" group="${cache.service.feedcontent.pool}">
+        <property name="useMotanMcClient" value="${cache.service.feedcontent.pool.switch}" />
+        <property name="updateSlaveL1" value="${comment.content2.mc.updateSlaveL1}" />
+        <property name="updateMasterL1" value="${service.context.mqprocessor}" />
+    </weibo:cstemplate>
 </beans>

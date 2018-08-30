@@ -37,6 +37,7 @@ http://api.weibo.com/schema/weibo http://api.weibo.com/schema/weibo.xsd ">
         <property name="tablesItems">
             <map>
                 <entry key="status" value-ref="status"/>
+                <entry key="timeline" value-ref="timeline"/>
                 <entry key="status_cmt" value-ref="status_cmt"/>
                 <entry key="cmt_timeline" value-ref="cmt_timeline"/>
                 <entry key="comment" value-ref="comment"/>
@@ -61,9 +62,6 @@ http://api.weibo.com/schema/weibo http://api.weibo.com/schema/weibo.xsd ">
                 <entry key="UPDATE_CONTENT" value="update $db$.$tb$ set content=? where id=?"/>
                 <entry key="DELETE_CONTENT" value="delete from $db$.$tb$ where id=?"/>
                 <entry key="GET_CONTENT" value="select id, content from $db$.$tb$ where id=?"/>
-                <entry key="GET_CONTENTS" value="select id, content from $db$.$tb$ where id in "/>
-                <entry key="GET_LATEST_STATUS_IDS" value="select id from $db$.$tb$ where id &lt; 4500000000000000 order by id desc limit ?"/>
-                <entry key="GET_FURTHEST_STATUS_IDS" value="select id from $db$.$tb$ where id &lt; 4500000000000000 order by id asc limit ?"/>
             </map>
         </property>
         <property name="hierarchy" value="${status.tableitem.hierarchy}"/>
@@ -221,6 +219,178 @@ http://api.weibo.com/schema/weibo http://api.weibo.com/schema/weibo.xsd ">
             </list>
         </property>
     </bean>
+
+    <!--  table timeline_yy_MM -->
+    <bean id="timeline" class="cn.sina.api.data.dao.impl2.strategy.TableItem">
+        <property name="itemName" value="timeline"/>
+        <property name="dbNamePrefix"  value="status_timeline"/>
+        <property name="dbCount"  value="32"/>
+
+        <property name="tableNamePrefix" value="timeline" />
+        <property name="tableNamePostFix" value="yymm" /> <!-- 默认是索引 -->
+        <property name="tableCount" value="1" />            <!-- 这个参数和tableNamePostFix有关系，如果是日期就不用了。 -->
+        <property name="sqls">
+            <map>
+                <entry key="SAVE_TIMELINE" value="insert into $db$.$tb$ (uid, vflag, status_id, source, fflag, mflag) values(?,?,?,?,?,?)"/>
+                <entry key="GET_TIMELINE_IN_MONTH_WITH_FLAG_SHOW" value="select vflag, status_id, source, fflag from $db$.$tb$ where uid=? and vflag &lt;&gt; ? order by status_id desc limit ?, ?"/>
+                <entry key="GET_TIMELINE_IN_MONTH_WITH_FLAG_SHOW_BY_TIME" value="select vflag, status_id, source, fflag from $db$.$tb$ where uid=? and vflag &lt;&gt; ? order by status_id desc limit ?, ?"/>
+                <entry key="GET_TIMELINE_ALL_IN_MONTH_WITH_FLAG_SHOW" value="select vflag, status_id, source, fflag from $db$.$tb$ where uid=? and vflag &lt;&gt; ? order by status_id desc"/>
+                <entry key="GET_TIMELINE_ALL_IN_MONTH_WITH_FLAG_SHOW_BY_TIME" value="select vflag, status_id, source, fflag from $db$.$tb$ where uid=? and vflag &lt;&gt; ? order by status_id desc"/>
+                <entry key="GET_TIMELINE_ALL_IN_MONTH" value="select uid, vflag, status_id, source, fflag, mflag from $db$.$tb$ where uid=? and vflag &lt;&gt; ? order by status_id desc"/>
+                <entry key="GET_TIMELINE_ALL_IN_MONTH_WITH_FLAG_ALL" value="select uid, vflag, status_id, source, fflag from $db$.$tb$ where uid=? and vflag in(0,4,5,6,7,15,16) order by status_id desc"/>
+            </map>
+        </property>
+        <property name="jdbcTemplates">
+            <list>
+                <ref bean="status_timeline_jdbctemplate_0"/>
+                <ref bean="status_timeline_jdbctemplate_1"/>
+                <ref bean="status_timeline_jdbctemplate_2"/>
+                <ref bean="status_timeline_jdbctemplate_3"/>
+                <ref bean="status_timeline_jdbctemplate_4"/>
+                <ref bean="status_timeline_jdbctemplate_5"/>
+                <ref bean="status_timeline_jdbctemplate_6"/>
+                <ref bean="status_timeline_jdbctemplate_7"/>
+            </list>
+        </property>
+    </bean>
+
+    <bean id="status_timeline_jdbctemplate_0" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_status_timeline_0_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_status_timeline_0_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="status_timeline_jdbctemplate_1" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_status_timeline_1_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_status_timeline_1_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="status_timeline_jdbctemplate_2" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_status_timeline_2_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_status_timeline_2_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="status_timeline_jdbctemplate_3" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_status_timeline_3_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_status_timeline_3_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="status_timeline_jdbctemplate_4" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_status_timeline_4_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_status_timeline_4_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="status_timeline_jdbctemplate_5" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_status_timeline_5_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_status_timeline_5_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="status_timeline_jdbctemplate_6" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_status_timeline_6_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_status_timeline_6_s" />
+            </list>
+        </property>
+    </bean>
+
+    <bean id="status_timeline_jdbctemplate_7" class="cn.sina.api.data.dao.util.JdbcTemplate">
+        <property name="dataSource">
+            <ref bean="datasources_status_timeline_7_m" />
+        </property>
+        <property name="dataSourceSlaves">
+            <list>
+                <ref bean="datasources_status_timeline_7_s" />
+            </list>
+        </property>
+    </bean>
+
+    <weibo:mysql id="datasources_status_timeline_0_m"  parent="statusBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${status.timeline.datasource.master_0.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_timeline_1_m"  parent="statusBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${status.timeline.datasource.master_1.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_timeline_2_m"  parent="statusBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${status.timeline.datasource.master_2.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_timeline_3_m"  parent="statusBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${status.timeline.datasource.master_3.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_timeline_4_m"  parent="statusBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${status.timeline.datasource.master_4.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_timeline_5_m"  parent="statusBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${status.timeline.datasource.master_5.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_timeline_6_m"  parent="statusBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${status.timeline.datasource.master_6.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_timeline_7_m"  parent="statusBaseDataSource" strategy="master">
+        <property name="jdbcUrl"><value>${status.timeline.datasource.master_7.jdbcUrl}</value></property>
+    </weibo:mysql>
+
+    <weibo:mysql id="datasources_status_timeline_0_s"  parent="statusBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${status.timeline.datasource.slave_0.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_timeline_1_s"  parent="statusBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${status.timeline.datasource.slave_1.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_timeline_2_s"  parent="statusBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${status.timeline.datasource.slave_2.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_timeline_3_s"  parent="statusBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${status.timeline.datasource.slave_3.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_timeline_4_s"  parent="statusBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${status.timeline.datasource.slave_4.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_timeline_5_s"  parent="statusBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${status.timeline.datasource.slave_5.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_timeline_6_s"  parent="statusBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${status.timeline.datasource.slave_6.jdbcUrl}</value></property>
+    </weibo:mysql>
+    <weibo:mysql id="datasources_status_timeline_7_s"  parent="statusBaseDataSource" strategy="slave">
+        <property name="jdbcUrl"><value>${status.timeline.datasource.slave_7.jdbcUrl}</value></property>
+    </weibo:mysql>
 
     <!-- 内容库2016年以及以后的表  -->
     <bean id="status_jdbctemplates_2014" class="java.util.ArrayList">

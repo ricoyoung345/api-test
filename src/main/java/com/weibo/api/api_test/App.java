@@ -35,8 +35,6 @@ import com.weibo.api.engine.comment.service.CommentHotFlowRedisService;
 import com.weibo.api.engine.comment.util.ApprovalCommentUtil;
 import com.weibo.api.engine.comment.util.CommentsUtil;
 import com.weibo.api.engine.core.model.CommentHotFlowContext;
-import com.weibo.api.engine.util.CommentAdvertiseUtil;
-import net.sf.json.JSONObject;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.collections.MapUtils;
 import org.apache.commons.lang.StringUtils;
@@ -44,7 +42,6 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFCellStyle;
 import org.apache.poi.hssf.usermodel.HSSFFont;
-import org.apache.poi.hssf.usermodel.HSSFRichTextString;
 import org.apache.poi.hssf.usermodel.HSSFRow;
 import org.apache.poi.hssf.usermodel.HSSFSheet;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
@@ -58,33 +55,24 @@ import reactor.function.support.UriUtils;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.RandomAccessFile;
-import java.lang.reflect.Field;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.sql.Date;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.DecimalFormat;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
+import java.util.Random;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -98,218 +86,72 @@ import java.util.concurrent.TimeUnit;
 public class App 
 {
 	public static void main(String[] args) {
-		// ExportCommentList exportCommentList = new ExportCommentList();
-		// exportCommentList.commentListExport();
-		testStatus();
-		System.out.println("done");
+		ProcessHttp.testGet();
 	}
 
-	private static void testStatus() {
-		List<String> xmlList = Lists.newArrayList();
-		xmlList.add("file:/Users/erming/platform/idea/weibo-api-core/src/main/resources/spring/configloader.xml");
-
-		xmlList.add("classpath:mysql.xml");
-		xmlList.add("classpath:rpc.xml");
-		ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext(ArrayUtil.toStringArr(xmlList));
-		context.start();
-		SinaUserService sinaUserService = (SinaUserService) context.getBean("sinaUserService");
-		TableContainer tableContainer = (TableContainer) context.getBean("tableContainer");
-
-		Date date = new Date(1533052800000L);
-		Status status = getStatus(tableContainer, sinaUserService, 4278668047843758L, true);
-		System.out.println("wait");
-	}
-
-	private static void updateStatusList(TableContainer tableContainer) {
-		Date date = new Date(1530374400000L);
-		TableChannel tableChannel = tableContainer.getTableChannel("status_cmt", "UPDATE_STATUS_CMT_STATE", 4264946021779761L, date);
-		String sql = tableChannel.getSql();
+	private static void MCTest(int keys, int listLength) {
+		int keyNum = keys;
+		int size_const = 300;
+		int score_const = 1;
+		long statusId = 3683372550715671L;
+		long commentId = 4183372550715671L;
 		try {
-			boolean isUpdated = tableChannel.getJdbcTemplate().update(sql, new Object[]{0, 0, 4264946021779761L, 4265759767614279L, 0, 0}) > 0;
-			System.out.println("\nupdateStatusList");
-			System.out.println(isUpdated);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-	private static void updateBymeList(TableContainer tableContainer) {
-		TableChannel tableChannel = tableContainer.getTableChannel("cmt_timeline", "UPDATE_TIMELINE_STATE", 6012794304L, 4265759767614279L);
-		String sql = tableChannel.getSql();
-		try {
-			boolean isUpdated = tableChannel.getJdbcTemplate().update(sql, new Object[]{0, 0, 6012794304L, 4265759767614279L, 0, 0}) > 0;
-			System.out.println("\nupdateBymeList");
-			System.out.println(isUpdated);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-	}
-
-	public static boolean updateContentState(TableContainer tableContainer, Comment comment) {
-		if (comment == null) { return false; }
-
-		TableChannel tableChannel = tableContainer.getTableChannel("comment", "UPDATE_CONTENT", comment.id, comment.id);
-		String sql = tableChannel.getSql();
-		try {
-			System.out.println(CommentPBUtil.toDbPB(comment).length);
-			boolean isUpdated = tableChannel.getJdbcTemplate().update(sql, new Object[]{CommentPBUtil.toDbPB(comment), comment.id, CommentPBUtil.toDbPB(comment)}) > 0;
-			System.out.println("\nupdateContentState");
-			System.out.println(isUpdated);
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-
-		return false;
-	}
-
-	private static void getBymeList(TableContainer tableContainer) {
-		try {
-			Date date = new Date(1530374400000L);
-			final List<BymeMeta> bymeMetas = Lists.newArrayList();
-			TableChannel bymeTableChannel = tableContainer.getTableChannel("cmt_timeline", "GET_TIMELINE", 6012794304L, date);
-			String sql = bymeTableChannel.getSql();
-
-			System.out.println("\ngetBymeList");
-			bymeTableChannel.getJdbcTemplate().query(sql, new Object[]{6012794304L, Comment.VFLAG_SHOW, 0 ,20}, new RowMapper(){
-				public Object mapRow(ResultSet rs, int id) throws SQLException {
-					BymeMeta bymeMeta = new BymeMeta();
-					bymeMeta.uid = rs.getLong("uid");
-					bymeMeta.cmt_id = rs.getLong("cmt_id");
-					bymeMeta.type = rs.getInt("type");
-					bymeMeta.mflag = rs.getInt("mflag");
-					bymeMeta.vflag = rs.getInt("vflag");
-					bymeMetas.add(bymeMeta);
-					return null;
+			while (keyNum-- > 0) { // 添加keyNum个key
+				int listSize = listLength;
+				String key = String.valueOf(statusId - keyNum) + ".hotf";
+				CommentHotFlowVector commentHotFlowVector = new CommentHotFlowVector();
+				commentHotFlowVector.metaList = Lists.newArrayList();
+				while (listSize-- > 0) {
+					long cid = (commentId - keyNum * size_const - listSize);
+					double score = StatusHotCommentUtil.getStoreScoreWithCid(score_const, cid);
+					CommentHotFlowMeta commentHotFlowMeta = new CommentHotFlowMeta(cid, score);
+					commentHotFlowVector.metaList.add(commentHotFlowMeta);
 				}
-			});
-			for (BymeMeta bymeMeta : bymeMetas) {
-				System.out.println("uid:" + bymeMeta.uid + "\tcmt_id:" + bymeMeta.cmt_id + "\ttype:" + bymeMeta.type + "\tmflag:" + bymeMeta.mflag + "\tvflag:" + bymeMeta.vflag);
+				MCClient.setValue(key, commentHotFlowVector.toPb());
 			}
+
+			System.out.println(keys + "keys, " + listLength + " item perkey");
 		} catch (Exception e) {
+			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 	}
 
-	private static void getStatusShowList(TableContainer tableContainer, SinaUserService sinaUserService) {
-		try {
-			Date date = new Date(1533052800000L);
-			TableChannel statusTableChannel = tableContainer.getTableChannel("status_cmt", "GET_STATUS_COMMENTMETA_ALL_IN_MONTH", 4268594756270940L, date);
-			String statusSql = statusTableChannel.getSql();
-			Object[] paramsObject = new Object[]{ 4268594756270940L, Comment.VFLAG_SHOW};
-			final List<StatusMeta> statusMetas = Lists.newArrayList();
-
-			statusTableChannel.getJdbcTemplate().query(statusSql, paramsObject, new RowMapper() {
-				@Override
-				public Object mapRow(ResultSet rs, int i) throws SQLException {
-					StatusMeta statusMeta = new StatusMeta();
-					statusMeta.status_id = rs.getLong("status_id");
-					statusMeta.cmt_id = rs.getLong("cmt_id");
-					statusMeta.mflag = rs.getInt("mflag");
-					statusMeta.uid = rs.getLong("uid");
-					statusMeta.vflag = rs.getInt("vflag");
-					statusMetas.add(statusMeta);
-					return null;
-				}
-			});
-		}catch (Exception e) {
-			e.printStackTrace();
-		}
+	private static void getIndex(long id) {
+		getFI("CommentTree 486*：", 4861, id, 32, 1);
+		getFI("CommentTimeline 492*：", 4921, id, 32, 1);
+		getSI("CommentNewApproval 529*：", 5291, id, 32, 8);
+		getRedisI("CommentHotFlow 20573 ~ 20604：", 20573, id, 1024, 32);
 	}
 
-	private static String getState(Comment comment) {
-		if (comment == null) {
-			return "";
-		}
-
-		int apiState = StatusHelper.getApiStateByState(comment.state);
-		if (apiState == BaseStatus.STATE_SHOW) {
-			return "公开可见";
-		} else if (apiState == BaseStatus.STATE_SHOW_SELF) {
-			return "仅评论人可见";
-		} else {
-			return "已删除";
-		}
+	private static void getFI(String desc, int startPort, long id, int dbCount, int tableCount) {
+		System.out.println(desc + (" port:" + (startPort + ((ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) / tableCount) / 4))) + " database:" + (ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) / tableCount));
 	}
 
-	static Comment getComment(StorageProxy<byte[]> content2StorageProxy, long id) {
-		byte[] value = content2StorageProxy.get(id + ".ccp");
-		if (value != null)
-			return CommentPBUtil.parseFromPB(value);
-
-		return null;
+	private static void getSI(String desc, int startPort, long id, int dbCount, int tableCount) {
+		System.out.println(desc + (" port:" + (startPort + ((ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) / tableCount) / 4))) + " database:" + (ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) / tableCount) + " table:" +  (ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) % tableCount));
 	}
 
-	static Status getStatus(TableContainer tableContainer, SinaUserService sinaUserService, final long id, final boolean loadDeleted) {
-		TableChannel channel = tableContainer.getTableChannel("status", "GET_CONTENT", id, id);
-		JdbcTemplate template = channel.getJdbcTemplate();
-		String sql = channel.getSql();
-
-		Status status = (Status) template.query(sql, new Long[] {id}, new ResultSetExtractor() {
-			@Override
-			public Object extractData(ResultSet rs) throws SQLException, DataAccessException {
-				if (rs.next()) {
-					Status status = StatusPBUtil.parseFromPB(rs.getBytes("content"), loadDeleted);
-					if (status != null) {
-						status.id = id;
-						SinaUser sinaUser = sinaUserService.getSinaUser(status.getAuthorId());
-						status.author = sinaUser;
-						return status;
-					}
-				}
-				return null;
-			}
-		});
-
-		return status;
+	private static void getRedisI(String desc, int startPort, long id, int hashGene, int tablePerDb) {
+		System.out.println(desc + (" port:" + (startPort + (HashUtil.getHash(id, hashGene, "crc32", "new") / tablePerDb))));
 	}
 
-	private static void fileChannel() {
-		RandomAccessFile aFile = null;
-		try {
-			aFile = new RandomAccessFile("data/nio-data.txt", "rw");
-			FileChannel inChannel = aFile.getChannel();
-
-			ByteBuffer buf = ByteBuffer.allocate(48);
-
-			int bytesRead = inChannel.read(buf);
-			while (bytesRead != -1) {
-
-				System.out.println("Read " + bytesRead);
-				buf.flip();
-
-				while(buf.hasRemaining()){
-					System.out.print((char) buf.get());
-				}
-
-				buf.clear();
-				bytesRead = inChannel.read(buf);
-			}
-		} catch (IOException e) {
-			e.printStackTrace();
-		} finally {
-			try {
-				aFile.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-	}
-
-	private static byte[][] stringKeysToByteArrayKeys(Collection stringKeys) {
-		if (org.apache.commons.collections.CollectionUtils.isEmpty(stringKeys)) {
+	public static final String statusId2Url(long uid, long mid) {
+		if (uid <= 0 || !UuidHelper.isValidId(mid)) {
 			return null;
 		}
 
-		String[] stringKeysArray = ArrayUtil.toStringArr(stringKeys);
-		byte[][] byteArrayKeys = new byte[stringKeys.size()][];
-		for (int i = 0; i < stringKeys.size(); i++) {
-			byteArrayKeys[i] = Util.toBytes(stringKeysArray[i]);
-		}
-
-		return byteArrayKeys;
+		StringBuilder urlBuilder = new StringBuilder();
+		urlBuilder.append("http://weibo.com/").append(uid).append("/").append(Base62Parse.encode(mid));
+		return urlBuilder.toString();
 	}
+}
 
+class ProcessHttp {
+	public static List<String> SHOW_URLS = Lists.newArrayList();
+	public static String path = "/Users/erming/platform/idea/api-test/src/main/resources/showparam.txt";
 	public static ApacheHttpClient httpclient = new ApacheHttpClient(100, 1000, 1000, 1024 * 1024);
+	public static ThreadPoolExecutor POOL = new ThreadPoolExecutor(2, 2, 10L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(100), new ThreadPoolExecutor.CallerRunsPolicy());
 
 	public static void testPost() {
 		String POST_URL = "http://10.77.96.56:9699/uve/service/comments_list?";
@@ -355,162 +197,50 @@ public class App
 	}
 
 	public static void testGet() {
-		String GET_URL = "http://10.77.96.56:9699/uve/service/comments_list?max_id=0&c=android&ua=HUAWEI-FRD-AL10__weibo__8.4.3__android__android7.0&wm=3333_1001&from=1084395010&lang=zh_CN&appid=6&attachment=&feedtype=0&increment=&ip=10.222.68.61&list_id=&posid=pos50753fa08810c&proxy_source=3439264077&source=3439264077&uid=3002231187&blog_author_id=1889377232&blue_v=0&mid=4232784643625730&content=%E4%B8%87%E4%BA%BA%E8%BF%B7%E6%89%8B%E6%92%95%E8%85%B9%E9%BB%91%E5%A5%B3%E7%8E%B0%E5%9C%BA%E7%9B%B4%E5%87%BB%EF%BC%8C%E8%B0%81%E8%AF%B4%E6%BC%82%E4%BA%AE%E5%A5%B3%E7%94%9F%E6%B2%A1%E6%99%BA%E6%85%A7%20http://t.cn/RutdgyM%20%E2%80%8B%E2%80%8B%E2%80%8B&org_content=&unread_status=20&refresh_times=1&is_ad=false&refreshId=null";
 		try {
-			long totalTime = 0;
-			for (int i = 0; i <= 99; i++) {
-				long timeStart = System.currentTimeMillis();
-				String rt = httpclient.getAsync(UriUtils.encodeHttpUrl(GET_URL, "utf-8"), 1000L);
-				long timeEnd = System.currentTimeMillis();
+			BufferedReader reader = new BufferedReader(new FileReader(new File(path)));
+			String line = null;
+			while ((line = reader.readLine()) != null)
+				SHOW_URLS.add(line);
 
-				System.out.println(rt);
-				totalTime += (timeEnd - timeStart);
+			Random random = new Random(System.currentTimeMillis());
+			Map<String, String> headers = Maps.newHashMap();
+			headers.put("Authorization", "Basic amluZ2ppbmdfdGVzdDMxMTE0QHNpbmEuY246MTIzMjIz");
+			String URL = "http://10.22.6.185:8080/2/attitudes/show.json?";
+
+			int count = 0;
+			long startTime = System.currentTimeMillis();
+			while (true) {
+				StringBuilder GET_URL = new StringBuilder();
+				GET_URL.append(URL);
+				GET_URL.append(SHOW_URLS.get(7));
+
+				POOL.execute(new Runnable() {
+					@Override
+					public void run() {
+						try {
+							String rt = httpclient.get(GET_URL.toString(), headers, "utf-8");
+							if ((System.currentTimeMillis()) % 60 == 0)
+								System.out.println(rt);
+						} catch (Exception e) {
+							System.out.println("httpclient error " + GET_URL);
+						}
+					}
+				});
+				count++;
+
+				long endTime = System.currentTimeMillis();
+				double timecousume = ((double) endTime - (double) startTime) / 1000;
+				if (timecousume < 1) timecousume = 1;
+				if ((System.currentTimeMillis() / 1000) % 10 == 0)
+					System.out.println("round:" + count + ", QPS:" + count / timecousume);
 			}
-			System.out.println("get avg: " + totalTime/100);
+
+
 		} catch (Exception e) {
-			System.out.println("Whatever!");
-		}
-	}
-
-	private static void MCTest(int keys, int listLength) {
-		int keyNum = keys;
-		int size_const = 300;
-		int score_const = 1;
-		long statusId = 3683372550715671L;
-		long commentId = 4183372550715671L;
-		try {
-			while (keyNum-- > 0) { // 添加keyNum个key
-				int listSize = listLength;
-				String key = String.valueOf(statusId - keyNum) + ".hotf";
-				CommentHotFlowVector commentHotFlowVector = new CommentHotFlowVector();
-				commentHotFlowVector.metaList = Lists.newArrayList();
-				while (listSize-- > 0) {
-					long cid = (commentId - keyNum * size_const - listSize);
-					double score = StatusHotCommentUtil.getStoreScoreWithCid(score_const, cid);
-					CommentHotFlowMeta commentHotFlowMeta = new CommentHotFlowMeta(cid, score);
-					commentHotFlowVector.metaList.add(commentHotFlowMeta);
-				}
-				MCClient.setValue(key, commentHotFlowVector.toPb());
-			}
-
-			System.out.println(keys + "keys, " + listLength + " item perkey");
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
+			System.out.println("testGet error!");
 			e.printStackTrace();
 		}
-	}
-
-	private static void getIndex(long id) {
-		getFI("CommentTree 486*：", 4861, id, 32, 1);
-		//getFI("CommentTimeline 492*：", 4921, id, 32, 1);
-		//getSI("CommentNewApproval 529*：", 5291, id, 32, 8);
-		//getRedisI("CommentHotFlow 20573 ~ 20604：", 20573, id, 1024, 32);
-	}
-
-	private static void getFI(String desc, int startPort, long id, int dbCount, int tableCount) {
-		System.out.println(desc + (" port:" + (startPort + ((ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) / tableCount) / 4))) + " database:" + (ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) / tableCount));
-	}
-
-	private static void getSI(String desc, int startPort, long id, int dbCount, int tableCount) {
-		System.out.println(desc + (" port:" + (startPort + ((ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) / tableCount) / 4))) + " database:" + (ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) / tableCount) + " table:" +  (ApiUtil.getHash4split(id, dbCount * Math.max(1, tableCount)) % tableCount));
-	}
-
-	private static void getRedisI(String desc, int startPort, long id, int hashGene, int tablePerDb) {
-		System.out.println(desc + (" port:" + (startPort + (HashUtil.getHash(id, hashGene, "crc32", "new") / tablePerDb))));
-	}
-
-	public static final String statusId2Url(long uid, long mid) {
-		if (uid <= 0 || !UuidHelper.isValidId(mid)) {
-			return null;
-		}
-
-		StringBuilder urlBuilder = new StringBuilder();
-		urlBuilder.append("http://weibo.com/").append(uid).append("/").append(Base62Parse.encode(mid));
-		return urlBuilder.toString();
-	}
-
-	/**
-	 *
-	 * @param IP
-	 * @return
-	 */
-	public static String GetAddressByIp(String IP){
-		String resout = "未获取到地区";
-		try{
-			String str = getJsonContent("http://ip.taobao.com/service/getIpInfo.php?ip="+IP);
-
-			// System.out.println(str);
-
-			JSONObject obj = JSONObject.fromObject(str);
-			JSONObject obj2 =  (JSONObject) obj.get("data");
-			String code = String.valueOf(obj.get("code"));
-			if(code.equals("0")){
-				resout = obj2.get("city")+ "-" +obj2.get("isp");
-			}else{
-				resout =  "未获取到地区";
-			}
-		}catch(Exception e){
-
-			e.printStackTrace();
-			resout = "获取IP地址异常："+e.getMessage();
-		}
-		return resout;
-
-	}
-
-	public static String getJsonContent(String urlStr)
-	{
-		try
-		{// 获取HttpURLConnection连接对象
-			URL url = new URL(urlStr);
-			HttpURLConnection httpConn = (HttpURLConnection) url
-					.openConnection();
-			// 设置连接属性
-			httpConn.setConnectTimeout(3000);
-			httpConn.setDoInput(true);
-			httpConn.setRequestMethod("GET");
-			// 获取相应码
-			int respCode = httpConn.getResponseCode();
-			if (respCode == 200)
-			{
-				return ConvertStream2Json(httpConn.getInputStream());
-			}
-		}
-		catch (MalformedURLException e)
-		{
-			e.printStackTrace();
-		}
-		catch (IOException e)
-		{
-			e.printStackTrace();
-		}
-		return "";
-	}
-
-
-	private static String ConvertStream2Json(InputStream inputStream)
-	{
-		String jsonStr = "";
-		// ByteArrayOutputStream相当于内存输出流
-		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		byte[] buffer = new byte[1024];
-		int len = 0;
-		// 将输入流转移到内存输出流中
-		try
-		{
-			while ((len = inputStream.read(buffer, 0, buffer.length)) != -1)
-			{
-				out.write(buffer, 0, len);
-			}
-			// 将内存流转换为字符串
-			jsonStr = new String(out.toByteArray());
-		}
-		catch (IOException e)
-		{
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return jsonStr;
 	}
 }
 
@@ -835,7 +565,7 @@ class ExportCommentList {
 		Map<Long, Status> statusMap = Maps.newHashMap();
 		List<Status> statusList = Lists.newArrayList();
 		for (IdFlag idFlag : statusIdList) {
-			Status status = App.getStatus(tableContainer, sinaUserService, idFlag.getId(), true);
+			Status status = ExportContent.getStatus(tableContainer, sinaUserService, idFlag.getId(), true);
 			statusList.add(status);
 			statusMap.put(idFlag.getId(), status);
 		}
@@ -887,7 +617,7 @@ class ExportCommentList {
 
 		List<Comment> commentList = Lists.newArrayList();
 		for (CommentHotFlowMeta commentHotFlowMeta : commentHotFlowMetas)
-			commentList.add(App.getComment(storageProxy, commentHotFlowMeta.getCid()));
+			commentList.add(ExportContent.getComment(storageProxy, commentHotFlowMeta.getCid()));
 
 		return commentList;
 	}
@@ -932,7 +662,7 @@ class ExportCommentList {
 
 		List<Comment> commentList = Lists.newArrayList();
 		for (CmtTreeBean cmtTreeBean : list)
-			commentList.add(App.getComment(storageProxy, cmtTreeBean.getChild_id()));
+			commentList.add(ExportContent.getComment(storageProxy, cmtTreeBean.getChild_id()));
 
 		return commentList;
 	}
@@ -1199,6 +929,234 @@ class ExportExcel {
 		cell.setCellStyle(style);
 	}
 
+}
+
+class ExportContent {
+	private static void testStatus() {
+		List<String> xmlList = Lists.newArrayList();
+		xmlList.add("file:/Users/erming/platform/idea/weibo-api-core/src/main/resources/spring/configloader.xml");
+
+		xmlList.add("classpath:mysql.xml");
+		xmlList.add("classpath:rpc.xml");
+		ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext(ArrayUtil.toStringArr(xmlList));
+		context.start();
+		SinaUserService sinaUserService = (SinaUserService) context.getBean("sinaUserService");
+		TableContainer tableContainer = (TableContainer) context.getBean("tableContainer");
+
+		Date date = new Date(1533052800000L);
+		Status status = getStatus(tableContainer, sinaUserService, 4278668047843758L, true);
+		System.out.println("wait");
+	}
+
+	private static void testComment() {
+		List<String> xmlList = Lists.newArrayList();
+		xmlList.add("file:/Users/erming/platform/idea/weibo-api-core/src/main/resources/spring/configloader.xml");
+		xmlList.add("file:/Users/erming/platform/idea/web_v4/src/spring/cache-service.xml");
+
+		xmlList.add("classpath:rpc.xml");
+		xmlList.add("classpath:mysql.xml");
+		xmlList.add("classpath:proxy.xml");
+		xmlList.add("classpath:mc.xml");
+		ClassPathXmlApplicationContext context = new ClassPathXmlApplicationContext(ArrayUtil.toStringArr(xmlList));
+		context.start();
+		StorageProxy<byte[]> content2StorageProxy = (StorageProxy<byte[]>) context.getBean("content2StorageProxy");
+		SinaUserService sinaUserService = (SinaUserService) context.getBean("sinaUserService");
+		TableContainer tableContainer = (TableContainer) context.getBean("tableContainer");
+		ExportCommentList.tableContainerLocal.set(tableContainer);
+		ExportCommentList.sinaUserServiceLocal.set(sinaUserService);
+
+		Date date = new Date(1533052800000L);
+		List<Long> commentIdLst = Lists.newArrayList(4276207128112203L, 4276197217450986L, 4276195338325653L, 4276203366062579L, 4276200664596722L, 4276198403692661L, 4276214070199746L, 4276207044091594L, 4276208277622102L, 4276206976867580L, 4276213176305535L, 4276203806167711L, 4276196588191718L, 4276196415809532L, 4276195912992864L, 4276197515342206L, 4276197297424017L, 4276197154335980L, 4276195983591400L, 4276194935166359L);
+	}
+
+	private static void updateStatusList(TableContainer tableContainer) {
+		Date date = new Date(1530374400000L);
+		TableChannel tableChannel = tableContainer.getTableChannel("status_cmt", "UPDATE_STATUS_CMT_STATE", 4264946021779761L, date);
+		String sql = tableChannel.getSql();
+		try {
+			boolean isUpdated = tableChannel.getJdbcTemplate().update(sql, new Object[]{0, 0, 4264946021779761L, 4265759767614279L, 0, 0}) > 0;
+			System.out.println("\nupdateStatusList");
+			System.out.println(isUpdated);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	private static void updateBymeList(TableContainer tableContainer) {
+		TableChannel tableChannel = tableContainer.getTableChannel("cmt_timeline", "UPDATE_TIMELINE_STATE", 6012794304L, 4265759767614279L);
+		String sql = tableChannel.getSql();
+		try {
+			boolean isUpdated = tableChannel.getJdbcTemplate().update(sql, new Object[]{0, 0, 6012794304L, 4265759767614279L, 0, 0}) > 0;
+			System.out.println("\nupdateBymeList");
+			System.out.println(isUpdated);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	public static boolean updateContentState(TableContainer tableContainer, Comment comment) {
+		if (comment == null) { return false; }
+
+		TableChannel tableChannel = tableContainer.getTableChannel("comment", "UPDATE_CONTENT", comment.id, comment.id);
+		String sql = tableChannel.getSql();
+		try {
+			System.out.println(CommentPBUtil.toDbPB(comment).length);
+			boolean isUpdated = tableChannel.getJdbcTemplate().update(sql, new Object[]{CommentPBUtil.toDbPB(comment), comment.id, CommentPBUtil.toDbPB(comment)}) > 0;
+			System.out.println("\nupdateContentState");
+			System.out.println(isUpdated);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+		return false;
+	}
+
+	private static void getBymeList(TableContainer tableContainer) {
+		try {
+			Date date = new Date(1530374400000L);
+			final List<BymeMeta> bymeMetas = Lists.newArrayList();
+			TableChannel bymeTableChannel = tableContainer.getTableChannel("cmt_timeline", "GET_TIMELINE", 6012794304L, date);
+			String sql = bymeTableChannel.getSql();
+
+			System.out.println("\ngetBymeList");
+			bymeTableChannel.getJdbcTemplate().query(sql, new Object[]{6012794304L, Comment.VFLAG_SHOW, 0 ,20}, new RowMapper(){
+				public Object mapRow(ResultSet rs, int id) throws SQLException {
+					BymeMeta bymeMeta = new BymeMeta();
+					bymeMeta.uid = rs.getLong("uid");
+					bymeMeta.cmt_id = rs.getLong("cmt_id");
+					bymeMeta.type = rs.getInt("type");
+					bymeMeta.mflag = rs.getInt("mflag");
+					bymeMeta.vflag = rs.getInt("vflag");
+					bymeMetas.add(bymeMeta);
+					return null;
+				}
+			});
+			for (BymeMeta bymeMeta : bymeMetas) {
+				System.out.println("uid:" + bymeMeta.uid + "\tcmt_id:" + bymeMeta.cmt_id + "\ttype:" + bymeMeta.type + "\tmflag:" + bymeMeta.mflag + "\tvflag:" + bymeMeta.vflag);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	private static void getStatusShowList(TableContainer tableContainer, SinaUserService sinaUserService) {
+		try {
+			Date date = new Date(1533052800000L);
+			TableChannel statusTableChannel = tableContainer.getTableChannel("status_cmt", "GET_STATUS_COMMENTMETA_ALL_IN_MONTH", 4268594756270940L, date);
+			String statusSql = statusTableChannel.getSql();
+			Object[] paramsObject = new Object[]{ 4268594756270940L, Comment.VFLAG_SHOW};
+			final List<StatusMeta> statusMetas = Lists.newArrayList();
+
+			statusTableChannel.getJdbcTemplate().query(statusSql, paramsObject, new RowMapper() {
+				@Override
+				public Object mapRow(ResultSet rs, int i) throws SQLException {
+					StatusMeta statusMeta = new StatusMeta();
+					statusMeta.status_id = rs.getLong("status_id");
+					statusMeta.cmt_id = rs.getLong("cmt_id");
+					statusMeta.mflag = rs.getInt("mflag");
+					statusMeta.uid = rs.getLong("uid");
+					statusMeta.vflag = rs.getInt("vflag");
+					statusMetas.add(statusMeta);
+					return null;
+				}
+			});
+		}catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	private static String getState(Comment comment) {
+		if (comment == null) {
+			return "";
+		}
+
+		int apiState = StatusHelper.getApiStateByState(comment.state);
+		if (apiState == BaseStatus.STATE_SHOW) {
+			return "公开可见";
+		} else if (apiState == BaseStatus.STATE_SHOW_SELF) {
+			return "仅评论人可见";
+		} else {
+			return "已删除";
+		}
+	}
+
+	static Comment getComment(StorageProxy<byte[]> content2StorageProxy, long id) {
+		byte[] value = content2StorageProxy.get(id + ".ccp");
+		if (value != null)
+			return CommentPBUtil.parseFromPB(value);
+
+		return null;
+	}
+
+	static Status getStatus(TableContainer tableContainer, SinaUserService sinaUserService, final long id, final boolean loadDeleted) {
+		TableChannel channel = tableContainer.getTableChannel("status", "GET_CONTENT", id, id);
+		JdbcTemplate template = channel.getJdbcTemplate();
+		String sql = channel.getSql();
+
+		Status status = (Status) template.query(sql, new Long[] {id}, new ResultSetExtractor() {
+			@Override
+			public Object extractData(ResultSet rs) throws SQLException, DataAccessException {
+				if (rs.next()) {
+					Status status = StatusPBUtil.parseFromPB(rs.getBytes("content"), loadDeleted);
+					if (status != null) {
+						status.id = id;
+						SinaUser sinaUser = sinaUserService.getSinaUser(status.getAuthorId());
+						status.author = sinaUser;
+						return status;
+					}
+				}
+				return null;
+			}
+		});
+
+		return status;
+	}
+
+	private static void fileChannel() {
+		RandomAccessFile aFile = null;
+		try {
+			aFile = new RandomAccessFile("data/nio-data.txt", "rw");
+			FileChannel inChannel = aFile.getChannel();
+
+			ByteBuffer buf = ByteBuffer.allocate(48);
+
+			int bytesRead = inChannel.read(buf);
+			while (bytesRead != -1) {
+
+				System.out.println("Read " + bytesRead);
+				buf.flip();
+
+				while(buf.hasRemaining()){
+					System.out.print((char) buf.get());
+				}
+
+				buf.clear();
+				bytesRead = inChannel.read(buf);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				aFile.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
+	private static byte[][] stringKeysToByteArrayKeys(Collection stringKeys) {
+		if (org.apache.commons.collections.CollectionUtils.isEmpty(stringKeys)) {
+			return null;
+		}
+
+		String[] stringKeysArray = ArrayUtil.toStringArr(stringKeys);
+		byte[][] byteArrayKeys = new byte[stringKeys.size()][];
+		for (int i = 0; i < stringKeys.size(); i++) {
+			byteArrayKeys[i] = Util.toBytes(stringKeysArray[i]);
+		}
+
+		return byteArrayKeys;
+	}
 }
 
 class BymeMeta {

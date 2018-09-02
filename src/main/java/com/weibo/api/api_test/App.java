@@ -149,7 +149,7 @@ public class App
 
 class ProcessHttp {
 	public static List<String> SHOW_URLS = Lists.newArrayList();
-	public static String path = "/Users/erming/platform/idea/api-test/src/main/resources/showparam.txt";
+	public static String path = "./src/main/resources/showparam.txt";
 	public static ApacheHttpClient httpclient = new ApacheHttpClient(100, 1000, 1000, 1024 * 1024);
 	public static ThreadPoolExecutor POOL = new ThreadPoolExecutor(2, 2, 10L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(100), new ThreadPoolExecutor.CallerRunsPolicy());
 

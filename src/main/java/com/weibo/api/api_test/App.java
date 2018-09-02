@@ -206,14 +206,14 @@ class ProcessHttp {
 			Random random = new Random(System.currentTimeMillis());
 			Map<String, String> headers = Maps.newHashMap();
 			headers.put("Authorization", "Basic amluZ2ppbmdfdGVzdDMxMTE0QHNpbmEuY246MTIzMjIz");
-			String URL = "http://10.22.6.185:8080/2/attitudes/show.json?";
+			String URL = "http://10.39.59.72:8080/2/attitudes/show.json?";
 
 			int count = 0;
 			long startTime = System.currentTimeMillis();
 			while (true) {
 				StringBuilder GET_URL = new StringBuilder();
 				GET_URL.append(URL);
-				GET_URL.append(SHOW_URLS.get(7));
+				GET_URL.append(SHOW_URLS.get(random.nextInt(100)));
 
 				POOL.execute(new Runnable() {
 					@Override
@@ -224,6 +224,7 @@ class ProcessHttp {
 								System.out.println(rt);
 						} catch (Exception e) {
 							System.out.println("httpclient error " + GET_URL);
+							e.printStackTrace();
 						}
 					}
 				});

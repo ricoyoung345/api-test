@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.weibo.api:api-engine:2.1136">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/api-engine/2.1136/api-engine-2.1136.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/api-engine/2.1136/api-engine-2.1136-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/api-engine/2.1136/api-engine-2.1136-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

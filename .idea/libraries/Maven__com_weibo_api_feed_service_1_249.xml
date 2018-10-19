@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.weibo.api:feed-service:1.249">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/feed-service/1.249/feed-service-1.249.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/feed-service/1.249/feed-service-1.249-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/feed-service/1.249/feed-service-1.249-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

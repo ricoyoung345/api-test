@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.weibo.api:user-graph-common:6.0.767">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/user-graph-common/6.0.767/user-graph-common-6.0.767.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/user-graph-common/6.0.767/user-graph-common-6.0.767-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/user-graph-common/6.0.767/user-graph-common-6.0.767-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

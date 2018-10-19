@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.weibo.api:weibo-api-whitelist-core:1.13-SNAPSHOT-ZY">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/weibo-api-whitelist-core/1.13-SNAPSHOT-ZY/weibo-api-whitelist-core-1.13-SNAPSHOT-ZY.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/weibo-api-whitelist-core/1.13-SNAPSHOT-ZY/weibo-api-whitelist-core-1.13-SNAPSHOT-ZY-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/weibo-api-whitelist-core/1.13-SNAPSHOT-ZY/weibo-api-whitelist-core-1.13-SNAPSHOT-ZY-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.weibo.api:motan-core:1.59-empty">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/motan-core/1.59-empty/motan-core-1.59-empty.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/motan-core/1.59-empty/motan-core-1.59-empty-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/motan-core/1.59-empty/motan-core-1.59-empty-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

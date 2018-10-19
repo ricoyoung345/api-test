@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.weibo.api:motan-weibo-auth:0.0.3-static-vintage">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/motan-weibo-auth/0.0.3-static-vintage/motan-weibo-auth-0.0.3-static-vintage.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/motan-weibo-auth/0.0.3-static-vintage/motan-weibo-auth-0.0.3-static-vintage-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/motan-weibo-auth/0.0.3-static-vintage/motan-weibo-auth-0.0.3-static-vintage-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

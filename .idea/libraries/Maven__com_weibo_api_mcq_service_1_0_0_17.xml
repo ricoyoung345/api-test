@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.weibo.api:mcq-service:1.0.0.17">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/mcq-service/1.0.0.17/mcq-service-1.0.0.17.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/mcq-service/1.0.0.17/mcq-service-1.0.0.17-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/mcq-service/1.0.0.17/mcq-service-1.0.0.17-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

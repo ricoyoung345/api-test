@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: commons-jexl:commons-jexl:20040901.055348">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/commons-jexl/commons-jexl/20040901.055348/commons-jexl-20040901.055348.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/commons-jexl/commons-jexl/20040901.055348/commons-jexl-20040901.055348-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/commons-jexl/commons-jexl/20040901.055348/commons-jexl-20040901.055348-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

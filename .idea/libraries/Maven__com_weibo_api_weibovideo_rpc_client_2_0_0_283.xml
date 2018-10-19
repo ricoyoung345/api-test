@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.weibo.api:weibovideo-rpc-client:2.0.0.283">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/weibovideo-rpc-client/2.0.0.283/weibovideo-rpc-client-2.0.0.283.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/weibovideo-rpc-client/2.0.0.283/weibovideo-rpc-client-2.0.0.283-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/weibovideo-rpc-client/2.0.0.283/weibovideo-rpc-client-2.0.0.283-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

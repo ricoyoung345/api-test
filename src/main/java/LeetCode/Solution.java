@@ -1,18 +1,8 @@
 package LeetCode;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.Deque;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.PriorityQueue;
-import java.util.Set;
-import java.util.Stack;
-import java.util.TreeMap;
+import com.google.common.collect.Lists;
+
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -32,11 +22,23 @@ class ListNode {
 public class Solution {
     public static void main(String[] args) {
         Solution solution = new Solution();
-        int[][] dungen = new int[3][3];
-        dungen[0] = new int[]{-2,-3,3};
-        dungen[1] = new int[]{-5,-10,1};
-        dungen[2] = new int[]{10,30,-5};
-        System.out.println(solution.calculateMinimumHP(dungen));
+
+        List<Integer> list = Lists.newArrayListWithCapacity(100);
+        for (int i = 1; i <= 100; i++)
+            list.add(i);
+
+        Collections.shuffle(list);
+        for(int i : list)
+            System.out.print(i + "\t");
+
+        int[] nums = new int[100];
+        for (int i = 0; i < 100; i++)
+            nums[i] = list.get(i);
+        System.out.println();
+
+        solution.heapSort(nums);
+        for (int i : nums)
+            System.out.print(i + "\t");
     }
 
     /**
@@ -2346,5 +2348,67 @@ public class Solution {
      */
     public int cherryPickup(int[][] grid) {
         return 0;
+    }
+
+    public void heapSort(int[] nums) {
+        if (nums == null || nums.length <= 1) {
+            return;
+        }
+
+        buildInitialHeap(nums);
+        for (int i = nums.length - 1; i >= 0; i--) {
+            int tempLastData = nums[i];
+            nums[i] = nums[0];
+            nums[0] = tempLastData;
+
+            minHeapAdjust(nums, 0, i);
+        }
+    }
+
+    /**
+     * 构建初始堆，从最底层的父节点开始调整
+     * @param nums
+     */
+    private void buildInitialHeap(int[] nums) {
+        if (nums == null || nums.length <= 1) {
+            return;
+        }
+
+        int size = nums.length;
+        for (int iterNodeIndex = size / 2; iterNodeIndex >= 0; iterNodeIndex--) {
+            minHeapAdjust(nums, iterNodeIndex, size);
+        }
+    }
+
+    /**
+     * 堆调整算法，从堆顶开始调整
+     *
+     * @param nums
+     * @param currentRootIndex
+     * @param size
+     */
+    private void minHeapAdjust(int[] nums, int currentRootIndex, int size) {
+        if (currentRootIndex < 0 || currentRootIndex > size / 2) {
+            return;
+        }
+
+        int leftNodeIndex = 2 * currentRootIndex + 1;
+        int rightNodeIndex = 2 * currentRootIndex + 2;
+        int minNodeIndex = currentRootIndex;
+
+        if (leftNodeIndex < size && nums[leftNodeIndex] < nums[minNodeIndex]) {
+            minNodeIndex = leftNodeIndex;
+        }
+
+        if (rightNodeIndex < size && nums[rightNodeIndex] < nums[minNodeIndex]) {
+            minNodeIndex = rightNodeIndex;
+        }
+
+        if (minNodeIndex != currentRootIndex) {
+            int swapTempNum = nums[currentRootIndex];
+            nums[currentRootIndex] = nums[minNodeIndex];
+            nums[minNodeIndex] = swapTempNum;
+            minHeapAdjust(nums, minNodeIndex, size);
+        }
     }
 }

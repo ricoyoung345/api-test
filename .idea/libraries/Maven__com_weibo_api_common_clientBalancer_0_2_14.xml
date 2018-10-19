@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.weibo.api.common:clientBalancer:0.2.14">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/common/clientBalancer/0.2.14/clientBalancer-0.2.14.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/common/clientBalancer/0.2.14/clientBalancer-0.2.14-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/common/clientBalancer/0.2.14/clientBalancer-0.2.14-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

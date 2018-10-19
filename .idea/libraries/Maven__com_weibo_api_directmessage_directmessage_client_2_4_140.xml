@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.weibo.api.directmessage:directmessage-client:2.4.140">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/directmessage/directmessage-client/2.4.140/directmessage-client-2.4.140.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/directmessage/directmessage-client/2.4.140/directmessage-client-2.4.140-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/directmessage/directmessage-client/2.4.140/directmessage-client-2.4.140-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.weibo.api:weibo-api-auth-core:8.107">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/weibo-api-auth-core/8.107/weibo-api-auth-core-8.107.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/weibo-api-auth-core/8.107/weibo-api-auth-core-8.107-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/weibo-api-auth-core/8.107/weibo-api-auth-core-8.107-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

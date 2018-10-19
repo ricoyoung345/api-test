@@ -10,7 +10,7 @@ public class JsonParseTest {
 	public static void main(String[] args) {
 		try {
 			while (true) {
-				BufferedReader reader = new BufferedReader(new FileReader(new File("./src/main/resources/attitudes.txt")));
+				BufferedReader reader = new BufferedReader(new FileReader(new File("/Users/erming/IdeaProjects/api-test/src/main/resources/attitudes.txt")));
 				String attitudes = reader.readLine();
 				JSONArray jsonArray = JSONArray.fromObject(attitudes);
 				Thread.sleep(100L);

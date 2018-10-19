@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: com.weibo.api.story:story-rpc-client:1.0.1.375">
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/story/story-rpc-client/1.0.1.375/story-rpc-client-1.0.1.375.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/story/story-rpc-client/1.0.1.375/story-rpc-client-1.0.1.375-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/weibo/api/story/story-rpc-client/1.0.1.375/story-rpc-client-1.0.1.375-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

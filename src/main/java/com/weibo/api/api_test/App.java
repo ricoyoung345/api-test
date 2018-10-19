@@ -149,7 +149,7 @@ public class App
 
 class ProcessHttp {
 	public static List<String> SHOW_URLS = Lists.newArrayList();
-	public static String path = "./src/main/resources/showparam.txt";
+	public static String path = "/Users/erming/IdeaProjects/api-test/src/main/resources/showparam.txt";
 	public static ApacheHttpClient httpclient = new ApacheHttpClient(100, 1000, 1000, 1024 * 1024);
 	public static ThreadPoolExecutor POOL = new ThreadPoolExecutor(2, 2, 10L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(100), new ThreadPoolExecutor.CallerRunsPolicy());
 
@@ -206,14 +206,15 @@ class ProcessHttp {
 			Random random = new Random(System.currentTimeMillis());
 			Map<String, String> headers = Maps.newHashMap();
 			headers.put("Authorization", "Basic amluZ2ppbmdfdGVzdDMxMTE0QHNpbmEuY246MTIzMjIz");
-			String URL = "http://10.39.59.72:8080/2/attitudes/show.json?";
+			String URL = "http://10.22.6.10:8080/2/attitudes/show.json?";
 
 			int count = 0;
 			long startTime = System.currentTimeMillis();
 			while (true) {
 				StringBuilder GET_URL = new StringBuilder();
 				GET_URL.append(URL);
-				GET_URL.append(SHOW_URLS.get(random.nextInt(100)));
+//				GET_URL.append(SHOW_URLS.get(random.nextInt(100)));
+				GET_URL.append(SHOW_URLS.get(7));
 
 				POOL.execute(new Runnable() {
 					@Override
@@ -933,9 +934,9 @@ class ExportExcel {
 }
 
 class ExportContent {
-	private static void testStatus() {
+	public static void testStatus() {
 		List<String> xmlList = Lists.newArrayList();
-		xmlList.add("file:/Users/erming/platform/idea/weibo-api-core/src/main/resources/spring/configloader.xml");
+		xmlList.add("file:/Users/erming/platform/weibo-api-core/src/main/resources/spring/configloader.xml");
 
 		xmlList.add("classpath:mysql.xml");
 		xmlList.add("classpath:rpc.xml");
@@ -946,6 +947,9 @@ class ExportContent {
 
 		Date date = new Date(1533052800000L);
 		Status status = getStatus(tableContainer, sinaUserService, 4278668047843758L, true);
+		status.weiboState = status.weiboState | (1 << 49);
+		updateContent(tableContainer, status);
+
 		System.out.println("wait");
 	}
 
@@ -1087,6 +1091,16 @@ class ExportContent {
 			return CommentPBUtil.parseFromPB(value);
 
 		return null;
+	}
+
+	public static boolean updateContent(TableContainer tableContainer, Status status) {
+		TableChannel channel = tableContainer.getTableChannel("status", "UPDATE_CONTENT", status.id, status.id);
+		JdbcTemplate template = channel.getJdbcTemplate();
+		String sql = channel.getSql();
+		boolean result = false;
+		result = template.update(sql, new Object[]{StatusPBUtil.toDbPB(status), status.id}) > 0;
+
+		return result;
 	}
 
 	static Status getStatus(TableContainer tableContainer, SinaUserService sinaUserService, final long id, final boolean loadDeleted) {
